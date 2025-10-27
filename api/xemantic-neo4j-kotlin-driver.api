@@ -65,6 +65,7 @@ public final class com/xemantic/neo4j/driver/SessionConfigBuilder {
 }
 
 public final class com/xemantic/neo4j/driver/SessionKt {
+	public static final fun SessionConfig (Lkotlin/jvm/functions/Function1;)Lorg/neo4j/driver/SessionConfig;
 	public static final fun coroutineSession (Lorg/neo4j/driver/Driver;Lkotlin/jvm/functions/Function1;)Lcom/xemantic/neo4j/driver/Session;
 	public static final fun coroutineSession (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;)Lcom/xemantic/neo4j/driver/Session;
 	public static synthetic fun coroutineSession$default (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;ILjava/lang/Object;)Lcom/xemantic/neo4j/driver/Session;
@@ -100,5 +101,9 @@ public final class com/xemantic/neo4j/driver/TransactionConfigBuilder {
 }
 
 public abstract interface class com/xemantic/neo4j/driver/TransactionContext : com/xemantic/neo4j/driver/QueryRunner {
+}
+
+public final class com/xemantic/neo4j/driver/TransactionKt {
+	public static final fun TransactionConfig (Lkotlin/jvm/functions/Function1;)Lorg/neo4j/driver/TransactionConfig;
 }
 
