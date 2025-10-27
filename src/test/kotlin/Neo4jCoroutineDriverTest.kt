@@ -175,30 +175,24 @@ class Neo4jCoroutineDriverTest {
 
         // when: querying the database and collecting the Flow of records
         val person = driver.coroutineSession().use { session ->
-
-            val result = session.executeRead { tx ->
-                tx.run("MATCH (p:Person) RETURN p")
+            session.executeRead { tx ->
+                tx.run(
+                    "MATCH (p:Person) RETURN p"
+                ).records().map { record ->
+                    record["p"].let { p ->
+                        Person(
+                            id =        p["id"].asString(),
+                            name =      p["name"].asString(),
+                            email =     p["email"].asString(),
+                            age =       p["age"].asInt(),
+                            city =      p["city"].asString(),
+                            skills =    p["skills"].asList { it.asString() },
+                            active =    p["active"].asBoolean(),
+                            createdAt = p["createdAt"].asInstant()
+                        )
+                    }
+                }.first()
             }
-
-            result should {
-                have(isOpen())
-                have(keys() == listOf("p"))
-            }
-
-            result.records().map { record ->
-                record["p"].let { p ->
-                    Person(
-                        id =        p["id"].asString(),
-                        name =      p["name"].asString(),
-                        email =     p["email"].asString(),
-                        age =       p["age"].asInt(),
-                        city =      p["city"].asString(),
-                        skills =    p["skills"].asList { it.asString() },
-                        active =    p["active"].asBoolean(),
-                        createdAt = p["createdAt"].asInstant()
-                    )
-                }
-            }.first()
         }
 
         // then: the person data matches what was stored
@@ -499,28 +493,31 @@ class Neo4jCoroutineDriverTest {
         val friendshipYears = mutableSetOf<Int>()
 
         driver.coroutineSession().use { session ->
-            val result = session.executeRead { tx ->
-                tx.run("""
+            session.executeRead { tx ->
+
+                val result = tx.run("""
                     MATCH (p1:Person)-[f:FRIENDS_WITH]->(p2:Person)
                     RETURN p1.name AS person1, p1.age AS age1,
                            p2.name AS person2, p2.age AS age2,
                            f.since AS friendsSince
                     ORDER BY person1
                 """.trimIndent())
+
+                result should {
+                    have(!isOpen())
+                    have(keys() == listOf("person1", "age1", "person2", "age2", "friendsSince"))
+                }
+
+                // Stream and process records using Flow
+                result.records().collect { record ->
+                    recordCount++
+                    totalAge += record["age1"].asInt()
+                    totalAge += record["age2"].asInt()
+                    friendshipYears.add(record["friendsSince"].asInt())
+                }
+
             }
 
-            result should {
-                have(isOpen())
-                have(keys() == listOf("person1", "age1", "person2", "age2", "friendsSince"))
-            }
-
-            // Stream and process records using Flow
-            result.records().collect { record ->
-                recordCount++
-                totalAge += record["age1"].asInt()
-                totalAge += record["age2"].asInt()
-                friendshipYears.add(record["friendsSince"].asInt())
-            }
         }
 
         // then: verify we processed a large number of records
