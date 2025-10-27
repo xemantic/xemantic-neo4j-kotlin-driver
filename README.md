@@ -43,21 +43,23 @@ driver.coroutineSession().use { session ->
 
 val person = driver.coroutineSession().use { session ->
     session.executeRead { tx ->
-        tx.run("MATCH (p:Person) RETURN p")
-    }.records().map { record ->
-        record["p"].let { p ->
-            Person(
-                id =        p["id"].asString(),
-                name =      p["name"].asString(),
-                email =     p["email"].asString(),
-                age =       p["age"].asInt(),
-                city =      p["city"].asString(),
-                skills =    p["skills"].asList { it.asString() },
-                active =    p["active"].asBoolean(),
-                createdAt = p["createdAt"].asInstant()
-            )
-        }
-    }.first()
+        tx.run(
+            "MATCH (p:Person) RETURN p"
+        ).records().map { record ->
+            record["p"].let { p ->
+                Person(
+                    id =        p["id"].asString(),
+                    name =      p["name"].asString(),
+                    email =     p["email"].asString(),
+                    age =       p["age"].asInt(),
+                    city =      p["city"].asString(),
+                    skills =    p["skills"].asList { it.asString() },
+                    active =    p["active"].asBoolean(),
+                    createdAt = p["createdAt"].asInstant()
+                )
+            }
+        }.first()
+    }
 }
 
 println(person)
