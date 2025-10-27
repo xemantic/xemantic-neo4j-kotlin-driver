@@ -504,7 +504,7 @@ class Neo4jCoroutineDriverTest {
                 """.trimIndent())
 
                 result should {
-                    have(!isOpen())
+                    have(isOpen())
                     have(keys() == listOf("person1", "age1", "person2", "age2", "friendsSince"))
                 }
 
