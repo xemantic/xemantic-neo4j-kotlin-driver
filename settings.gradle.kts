@@ -1,2 +1,1 @@
-// TODO replace with your project name
-rootProject.name = "xemantic-project-template"
+rootProject.name = "xemantic-neo4j-kotlin-driver"

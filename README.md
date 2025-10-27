@@ -1,6 +1,6 @@
 # xemantic-neo4j-kotlin-driver
 
-Kotlin coroutines adapter for the Neo4j Java driver
+Kotlin coroutines adapter for the Neo4j Java driver (async)
 
 [<img alt="Maven Central Version" src="https://img.shields.io/maven-central/v/com.xemantic.neo4j/xemantic-neo4j-kotlin-driver">](https://central.sonatype.com/artifact/com.xemantic.neo4j/xemantic-neo4j-kotlin-driver)
 [<img alt="GitHub Release Date" src="https://img.shields.io/github/release-date/xemantic/xemantic-neo4j-kotlin-driver">](https://github.com/xemantic/xemantic-neo4j-kotlin-driver/releases)

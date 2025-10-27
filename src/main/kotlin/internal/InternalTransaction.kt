@@ -14,21 +14,30 @@
  * limitations under the License.
  */
 
-// TODO replace with your package
-package com.xemantic.template.kotlin.multiplatform
+package com.xemantic.neo4j.driver.internal
 
-import com.xemantic.kotlin.test.have
-import com.xemantic.kotlin.test.should
-import kotlin.test.Test
+import com.xemantic.neo4j.driver.Transaction
+import kotlinx.coroutines.future.await
+import org.neo4j.driver.async.AsyncTransaction
 
-// TODO replace with your code
-class HelloWorldTest {
+internal class InternalTransaction(
+    private val tx: AsyncTransaction
+) : Transaction, AbstractInternalQueryRunner(
+    runner = tx
+) {
 
-    @Test
-    fun `should have singleton object Foo with const BAR equal to buzz`() {
-        Foo should {
-            have(BAR == "buzz")
-        }
+    override suspend fun commit() {
+        tx.commitAsync().await()
     }
+
+    override suspend fun rollback() {
+        tx.rollbackAsync().await()
+    }
+
+    override suspend fun close() {
+        tx.closeAsync().await()
+    }
+
+    override suspend fun isOpen(): Boolean = tx.isOpenAsync.await()
 
 }

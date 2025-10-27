@@ -1,17 +1,14 @@
-@file:OptIn(ExperimentalWasmDsl::class, ExperimentalKotlinGradlePluginApi::class)
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
 
 import com.xemantic.gradle.conventions.License
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
-import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl
-import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 import org.jreleaser.model.Active
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.jvm)
+    `java-library`
     alias(libs.plugins.kotlin.plugin.power.assert)
     alias(libs.plugins.kotlinx.binary.compatibility.validator)
     alias(libs.plugins.dokka)
@@ -22,18 +19,16 @@ plugins {
     alias(libs.plugins.xemantic.conventions)
 }
 
-// TODO change the group
-group = "com.xemantic.template"
+group = "com.xemantic.neo4j"
 
-// TODO fill up the details
 xemantic {
-    description = "A template repository for Xemantic's Kotlin multiplatform projects"
+    description = "Kotlin coroutines adapter for the Neo4j Java driver (async)"
     inceptionYear = 2025
     license = License.APACHE
     developer(
         id = "morisil",
         name = "Kazik Pogoda",
-        email = "morisil@xemantic.com"
+        email = "kazik@xemantic.com"
     )
 }
 
@@ -54,103 +49,45 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    api(libs.neo4j.driver)
+    api(libs.kotlinx.coroutines.core)
+
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.xemantic.kotlin.test)
+    testImplementation(libs.neo4j.harness)
+}
+
 kotlin {
 
-    // TODO remove for a non-library project
     explicitApi()
 
     compilerOptions {
         apiVersion = kotlinTarget
         languageVersion = kotlinTarget
+        jvmTarget = JvmTarget.fromTarget(javaTarget)
         freeCompilerArgs.addAll(
             "-Xcontext-parameters",
             "-Xcontext-sensitive-resolution"
+        )
+        optIn.addAll(
+            "kotlin.time.ExperimentalTime",
+            "kotlin.contracts.ExperimentalContracts",
+            "kotlin.concurrent.atomics.ExperimentalAtomicApi"
         )
         extraWarnings = true
         progressiveMode = true
     }
 
-    jvm {
-        // set up according to https://jakewharton.com/gradle-toolchains-are-rarely-a-good-idea/
-        compilerOptions {
-            apiVersion = kotlinTarget
-            languageVersion = kotlinTarget
-            jvmTarget = JvmTarget.fromTarget(javaTarget)
-            freeCompilerArgs.add("-Xjdk-release=$javaTarget")
-            progressiveMode = true
-        }
-    }
-
-    js {
-        browser()
-        nodejs()
-        // TODO remove for a non-library project
-        binaries.library()
-    }
-
-    wasmJs {
-        browser()
-        nodejs()
-        d8()
-        // TODO remove for a non-library project
-        binaries.library()
-    }
-
-    wasmWasi {
-        nodejs()
-        // TODO remove for a non-library project
-        binaries.library()
-    }
-
-    // native, see https://kotlinlang.org/docs/native-target-support.html
-    // tier 1
-    macosX64()
-    macosArm64()
-    iosSimulatorArm64()
-    iosX64()
-    iosArm64()
-
-    // tier 2
-    linuxX64()
-    linuxArm64()
-    watchosSimulatorArm64()
-    watchosX64()
-    watchosArm32()
-    watchosArm64()
-    tvosSimulatorArm64()
-    tvosX64()
-    tvosArm64()
-
-    // tier 3
-    androidNativeArm32()
-    androidNativeArm64()
-    androidNativeX86()
-    androidNativeX64()
-    mingwX64()
-    watchosDeviceArm64()
-
-    @OptIn(ExperimentalSwiftExportDsl::class)
-    swiftExport {}
-
-    sourceSets {
-
-        commonTest {
-            dependencies {
-                implementation(libs.kotlin.test)
-                implementation(libs.xemantic.kotlin.test)
-            }
-        }
-
-    }
-
 }
 
-tasks {
+tasks.withType<JavaCompile>().configureEach {
+    options.release = javaTarget.toInt()
+}
 
-    // skip tests which require XCode components to be installed
-    named("tvosSimulatorArm64Test") { enabled = false }
-    named("watchosSimulatorArm64Test") { enabled = false }
-
+tasks.test {
+    useJUnitPlatform()
 }
 
 powerAssert {
@@ -160,7 +97,7 @@ powerAssert {
     )
 }
 
-// https://kotlinlang.org/docs/dokka-migration.html#adjust-configuration-options
+//// https://kotlinlang.org/docs/dokka-migration.html#adjust-configuration-options
 dokka {
     pluginsConfiguration.html {
         footerMessage.set(xemantic.copyright)
@@ -201,23 +138,6 @@ jreleaser {
                     applyMavenCentralRules = false
                     maxRetries = 240
                     stagingRepository(xemantic.stagingDeployDir.path)
-                    // workaround: https://github.com/jreleaser/jreleaser/issues/1784
-                    kotlin.targets.forEach { target ->
-                        if (target !is KotlinJvmTarget) {
-                            val nonJarArtifactId = if (target.platformType == KotlinPlatformType.wasm) {
-                                "${name}-wasm-${target.name.lowercase().substringAfter("wasm")}"
-                            } else {
-                                "${name}-${target.name.lowercase()}"
-                            }
-                            artifactOverride {
-                                artifactId = nonJarArtifactId
-                                jar = false
-                                verifyPom = false
-                                sourceJar = false
-                                javadocJar = false
-                            }
-                        }
-                    }
                 }
             }
         }

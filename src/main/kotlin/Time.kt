@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-// TODO replace with your package
-package com.xemantic.template.kotlin.multiplatform
+package com.xemantic.neo4j.driver
 
-// TODO replace with your code
-public object Foo {
-    public const val BAR: String = "buzz"
-}
+import org.neo4j.driver.Value
+import kotlin.time.Instant
+import kotlin.time.toKotlinInstant
 
-public fun main() {
-    print("Hello World!")
-}
+/**
+ * Returns the value as a kotlin.time.[Instant], if possible.
+ *
+ * @return the value as an [Instant], if possible
+ * @throws org.neo4j.driver.exceptions.value.Uncoercible if value types are incompatible
+ * @throws java.time.DateTimeException if zone information supplied by server is not supported by driver runtime
+ */
+public fun Value.asInstant(): Instant = asZonedDateTime().toInstant().toKotlinInstant()
