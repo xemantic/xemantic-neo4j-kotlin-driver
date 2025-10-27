@@ -42,9 +42,9 @@ driver.coroutineSession().use { session ->
 }
 
 val person = driver.coroutineSession().use { session ->
-    session.run(
-        "MATCH (p:Person) RETURN p"
-    ).records().map { record ->
+    session.executeRead { tx ->
+        tx.run("MATCH (p:Person) RETURN p")
+    }.records().map { record ->
         record["p"].let { p ->
             Person(
                 id =        p["id"].asString(),
