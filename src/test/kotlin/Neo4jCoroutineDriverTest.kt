@@ -19,11 +19,10 @@ package com.xemantic.neo4j.driver
 import com.xemantic.kotlin.test.assert
 import com.xemantic.kotlin.test.coroutines.should
 import com.xemantic.kotlin.test.have
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.count
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
@@ -33,14 +32,17 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
+import org.neo4j.driver.exceptions.NoSuchRecordException
 import org.neo4j.driver.exceptions.ResultConsumedException
 import org.neo4j.driver.summary.QueryType
 import org.neo4j.harness.Neo4j
 import org.neo4j.harness.junit.extension.Neo4jExtension
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertFailsWith
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlin.time.measureTime
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(Neo4jExtension::class)
@@ -619,6 +621,135 @@ class Neo4jCoroutineDriverTest {
     }
 
     @Test
+    fun `should return single record when result has exactly one record`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: exactly one person in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p:Person {name: 'SinglePerson', age: 42})")
+            }
+
+            // when: querying for that one person using single()
+            val record = session.executeRead { tx ->
+                tx.run(
+                    "MATCH (p:Person) WHERE p.name = 'SinglePerson' RETURN p.name AS name, p.age AS age"
+                ).single()
+            }
+
+            // then: the record should contain the expected data
+            record should {
+                have(get("name").asString() == "SinglePerson")
+                have(get("age").asInt() == 42)
+            }
+
+        }
+
+    }
+
+    @Test
+    fun `should throw NoSuchRecordException when single() is called with zero records`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: no matching records in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p:Person {name: 'OtherPerson', age: 30})")
+            }
+
+            // when/then: calling single() should throw NoSuchRecordException
+            assertFailsWith<NoSuchRecordException> {
+                session.executeRead { tx ->
+                    tx.run(
+                        "MATCH (p:Person) WHERE p.name = 'NonExistent' RETURN p"
+                    ).single()
+                }
+            }
+
+        }
+
+    }
+
+    @Test
+    fun `should throw NoSuchRecordException when single() is called with multiple records`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: multiple people in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p1:Person {name: 'Alice', age: 25})")
+                tx.run("CREATE (p2:Person {name: 'Bob', age: 30})")
+                tx.run("CREATE (p3:Person {name: 'Charlie', age: 35})")
+            }
+
+            // when/then: calling single() should throw NoSuchRecordException
+            assertFailsWith<NoSuchRecordException> {
+                session.executeRead { tx ->
+                    tx.run(
+                        "MATCH (p:Person) RETURN p ORDER BY p.name"
+                    ).single()
+                }
+            }
+
+        }
+
+    }
+
+    @Test
+    fun `should throw ResultConsumedException when single() is called after consume()`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: data in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p:Person {name: 'TestPerson', age: 40})")
+            }
+
+            // when: getting a result, consuming it first, then trying to call single()
+            val result = session.run(
+                "MATCH (p:Person) WHERE p.name = 'TestPerson' RETURN p"
+            )
+
+            // Consume the result first
+            result.consume()
+
+            // then: attempting to call single() should throw ResultConsumedException
+            assertFailsWith<ResultConsumedException> {
+                result.single()
+            }
+
+        }
+
+    }
+
+    @Test
+    fun `should throw ResultConsumedException when single() is called after records() collection`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: data in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p:Person {name: 'AnotherPerson', age: 45})")
+            }
+
+            // when: getting a result, collecting records first, then trying to call single()
+            val result = session.run(
+                "MATCH (p:Person) WHERE p.name = 'AnotherPerson' RETURN p"
+            )
+
+            // Collect records first
+            result.records().collect()
+
+            // then: attempting to call single() should throw ResultConsumedException
+            assertFailsWith<ResultConsumedException> {
+                result.single()
+            }
+
+        }
+
+    }
+
+    @Test
     fun `should accept database parameter in session configuration`() = runTest {
         // when: creating a session with database parameter
         // Note: Neo4j harness uses the default database regardless of the parameter
@@ -695,6 +826,85 @@ class Neo4jCoroutineDriverTest {
                 .first()
         }
         assert(count == 1)
+    }
+
+    // performance tests
+    @Test
+    fun `should stream big amount of data with minimal impact`() = runTest {
+        val duration = measureTime {
+            val (last, summary) = driver.coroutineSession().use { session ->
+                session.executeRead { tx ->
+                    val result = tx.run("UNWIND range(1, 1000000) AS n RETURN n")
+                    val last = result.records().last()["n"].asInt()
+                    last to result.consume()
+                }
+            }
+            assert(last == 1000000)
+            println("Result available after: ${summary.resultAvailableAfter()}")
+            println("Result consumed after: ${summary.resultConsumedAfter()}")
+        }
+        println("Processed in $duration")
+    }
+
+    @Test
+    fun `should stream big amount of data with sync api`() {
+        val duration = measureTime {
+            val (last, summary) = driver.session().use { session ->
+                session.executeRead { tx ->
+                    val result = tx.run("UNWIND range(1, 1000000) AS n RETURN n")
+                    val last = result.stream().reduce { _, second -> second }.get()["n"].asInt()
+                    last to result.consume()
+                }
+            }
+            assert(last == 1000000)
+            println("Result available after: ${summary.resultAvailableAfter()} ms")
+            println("Result consumed after: ${summary.resultConsumedAfter()} ms")
+        }
+        println("Processed in $duration")
+    }
+
+    @Test
+    fun `should handle multiple concurrent queries efficiently`() = runTest {
+        val duration = measureTime {
+            List(100) { i ->
+                async(Dispatchers.IO) {
+                    driver.coroutineSession().use { session ->
+                        session.executeRead { tx ->
+                            tx.run("UNWIND range(1, 10000) AS n RETURN n * $i AS result")
+                                .records()
+                                .count()
+                        }
+                    }
+                }
+            }.awaitAll()
+        }
+        println("Processed in $duration")
+    }
+
+    @Test
+    fun `should handle multiple concurrent queries less efficiently - sync version`() {
+        val executor = Executors.newFixedThreadPool(100)
+        try {
+            val duration = measureTime {
+                val futures = List(100) { i ->
+                    executor.submit<Int> {
+                        driver.session().use { session ->
+                            session.executeRead { tx ->
+                                tx.run("UNWIND range(1, 30000) AS n RETURN n * $i AS result")
+                                    .stream()
+                                    .count()
+                                    .toInt()
+                            }
+                        }
+                    }
+                }
+                futures.map { it.get() } // Wait for all to complete
+            }
+            println("Processed in $duration")
+        } finally {
+            executor.shutdown()
+            executor.awaitTermination(1, TimeUnit.MINUTES)
+        }
     }
 
 }

@@ -20,6 +20,10 @@ import kotlinx.coroutines.flow.Flow
 import org.neo4j.driver.Record
 import org.neo4j.driver.exceptions.ResultConsumedException
 import org.neo4j.driver.summary.ResultSummary
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 /**
  * A coroutine result provides a Kotlin-idiomatic way to execute queries on the server and receive records back
@@ -36,6 +40,7 @@ import org.neo4j.driver.summary.ResultSummary
  * by this result are freed correctly.
  *
  * @see org.neo4j.driver.async.ResultCursor
+ * @see org.neo4j.driver.Result
  */
 public interface Result {
 
@@ -71,6 +76,17 @@ public interface Result {
      * @throws ResultConsumedException if records are consumed more than once.
      */
     public fun records(): Flow<Record>
+
+    /**
+     * Asynchronously return the first record in the result, failing if there is not exactly
+     * one record left in the stream.
+     *
+     * @return the first and only record in the stream. Stage will be
+     *      completed exceptionally with `NoSuchRecordException` if there is not exactly one record left in the
+     * stream. It can also be completed exceptionally if query execution fails.
+     * @throws org.neo4j.driver.exceptions.NoSuchRecordException
+     */
+    public suspend fun single(): Record
 
     /**
      * Consumes the result and returns the [ResultSummary] that arrives after all records have been processed.
@@ -110,3 +126,15 @@ public interface Result {
     public suspend fun isOpen(): Boolean
 
 }
+
+public fun ResultSummary.resultAvailableAfter(): Duration = resultAvailableAfter(
+    TimeUnit.MILLISECONDS
+).toDuration(
+    unit = DurationUnit.MILLISECONDS
+)
+
+public fun ResultSummary.resultConsumedAfter(): Duration = resultConsumedAfter(
+    TimeUnit.MILLISECONDS
+).toDuration(
+    unit = DurationUnit.MILLISECONDS
+)
