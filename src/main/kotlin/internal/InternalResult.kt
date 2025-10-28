@@ -56,6 +56,8 @@ internal class InternalResult(
 
     }
 
+    override suspend fun single(): Record = cursor.singleAsync().await()
+
     override suspend fun consume(): ResultSummary = cursor.consumeAsync().await()
 
     override suspend fun isOpen(): Boolean = cursor.isOpenAsync().await()
