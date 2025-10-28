@@ -115,6 +115,7 @@ publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["java"])
+            artifact(tasks.named<Jar>("kotlinSourcesJar"))
             artifact(javadocJar)
             xemantic.configurePom(this)
         }
