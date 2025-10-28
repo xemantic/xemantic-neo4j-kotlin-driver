@@ -113,7 +113,8 @@ val javadocJar by tasks.registering(Jar::class) {
 
 publishing {
     publications {
-        withType<MavenPublication> {
+        create<MavenPublication>("maven") {
+            from(components["java"])
             artifact(javadocJar)
             xemantic.configurePom(this)
         }
