@@ -69,7 +69,7 @@ In `build.gradle.kts` add:
 
 ```kotlin
 dependencies {
-    implementation("com.xemantic.neo4j:xemantic-neo4j-kotlin-driver:0.2.1")
+    implementation("com.xemantic.neo4j:xemantic-neo4j-kotlin-driver:0.2.2")
 }
 ```
 
