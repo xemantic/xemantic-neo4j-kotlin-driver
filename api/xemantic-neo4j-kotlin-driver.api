@@ -76,6 +76,12 @@ public final class com/xemantic/neo4j/driver/SessionKt {
 	public static final fun coroutineSession (Lorg/neo4j/driver/Driver;Lkotlin/jvm/functions/Function1;)Lcom/xemantic/neo4j/driver/Session;
 	public static final fun coroutineSession (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;)Lcom/xemantic/neo4j/driver/Session;
 	public static synthetic fun coroutineSession$default (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;ILjava/lang/Object;)Lcom/xemantic/neo4j/driver/Session;
+	public static final fun populate (Lorg/neo4j/driver/Driver;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun populate$default (Lorg/neo4j/driver/Driver;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun read (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun read$default (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun write (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun write$default (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public abstract interface class com/xemantic/neo4j/driver/SuspendCloseable {

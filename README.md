@@ -24,41 +24,39 @@ Kotlin coroutines adapter for the Neo4j Java driver (async)
 A good example might be worth thousand words:
 
 ```kotlin
-driver.coroutineSession().use { session ->
-    session.executeWrite { tx ->
-        tx.run("""
-            CREATE (alice:Person {
-                id: 'p001',
-                name: 'Alice Johnson',
-                email: 'alice.johnson@email.com',
-                age: 28,
-                city: 'New York',
-                skills: ['Python', 'JavaScript', 'SQL'],
-                active: true,
-                createdAt: datetime('2023-01-15T10:30:00')
-            });
-        """.trimIndent())
-    }
+// Write to the database
+driver.write { tx ->
+    tx.run("""
+        CREATE (alice:Person {
+            id: 'p001',
+            name: 'Alice Johnson',
+            email: 'alice.johnson@email.com',
+            age: 28,
+            city: 'New York',
+            skills: ['Python', 'JavaScript', 'SQL'],
+            active: true,
+            createdAt: datetime('2023-01-15T10:30:00')
+        });
+    """.trimIndent())
 }
 
-val person = driver.coroutineSession().use { session ->
-    session.executeRead { tx ->
-        tx.run(
-            "MATCH (p:Person) RETURN p"
-        ).records().map { record ->
-            record["p"].let { p ->
-                Person(
-                    id =        p["id"].asString(),
-                    name =      p["name"].asString(),
-                    email =     p["email"].asString(),
-                    age =       p["age"].asInt(),
-                    city =      p["city"].asString(),
-                    skills =    p["skills"].asList { it.asString() },
-                    active =    p["active"].asBoolean(),
-                    createdAt = p["createdAt"].asInstant()
-                )
-            }
-        }.first()
+// Read from the database
+val person = driver.read { tx ->
+    tx.run(
+        "MATCH (p:Person) RETURN p"
+    ).single().let { record ->
+        record["p"].let { p ->
+            Person(
+                id =        p["id"].asString(),
+                name =      p["name"].asString(),
+                email =     p["email"].asString(),
+                age =       p["age"].asInt(),
+                city =      p["city"].asString(),
+                skills =    p["skills"].asList { it.asString() },
+                active =    p["active"].asBoolean(),
+                createdAt = p["createdAt"].asInstant()
+            )
+        }
     }
 }
 
@@ -136,7 +134,56 @@ session.close()
 
 ## Query the database
 
-### Write to the database
+### Shortcut functions for single transactions
+
+For simple use cases where you need to execute a single transaction without managing sessions manually,
+use the convenient `driver.read()` and `driver.write()` shortcut functions. These functions automatically
+handle session lifecycle management (creation and cleanup) for you.
+
+#### Quick write example
+
+```kotlin
+driver.write { tx ->
+    tx.run(
+        "CREATE (p:Person {name: 'Alice', age: 30})"
+    )
+}
+```
+
+#### Quick read example
+
+```kotlin
+val name = driver.read { tx ->
+    tx.run(
+        "MATCH (p:Person {name: 'Alice'}) RETURN p.name AS name"
+    ).single()["name"].asString()
+}
+```
+
+#### With configuration
+
+Both functions accept optional `sessionConfig` and `transactionConfig` parameters:
+
+```kotlin
+val txConfig = TransactionConfig {
+    timeout = 5.seconds
+}
+
+driver.write(transactionConfig = txConfig) { tx ->
+    tx.run("CREATE (p:Person {name: 'Bob'})")
+}
+```
+
+> [!TIP]
+> Use `driver.read()` and `driver.write()` for simple single-transaction operations.
+> For multiple transactions on the same session, use the session-based approach described below.
+
+### Session-based transactions
+
+For more complex scenarios requiring multiple transactions on the same session, or when you need
+fine-grained control over session lifecycle, use the session-based approach.
+
+#### Write to the database
 
 ```kotlin
 val summary = driver.coroutineSession().use { session ->
@@ -171,8 +218,7 @@ See [Neo4jCoroutineDriverTest](src/test/kotlin/Neo4jCoroutineDriverTest.kt) with
 > [!TIP]
 > If you are using IntelliJ, installing the [Graph Database](https://plugins.jetbrains.com/plugin/20417-graph-database) plugin will automatically highlight the Cypher query code inside multiline strings.
 
-### Read from the database
-
+#### Read from the database
 
 ```kotlin
 val (names, readSummary) = driver.coroutineSession().use { session ->
