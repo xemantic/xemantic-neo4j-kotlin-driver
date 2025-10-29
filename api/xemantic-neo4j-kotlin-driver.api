@@ -17,6 +17,7 @@ public abstract interface class com/xemantic/neo4j/driver/Result {
 public final class com/xemantic/neo4j/driver/ResultKt {
 	public static final fun resultAvailableAfter (Lorg/neo4j/driver/summary/ResultSummary;)J
 	public static final fun resultConsumedAfter (Lorg/neo4j/driver/summary/ResultSummary;)J
+	public static final fun singleOrNull (Lcom/xemantic/neo4j/driver/Result;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class com/xemantic/neo4j/driver/Session : com/xemantic/neo4j/driver/QueryRunner, com/xemantic/neo4j/driver/SuspendCloseable, org/neo4j/driver/BaseSession {
