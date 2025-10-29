@@ -102,6 +102,25 @@ fun `test name`() = runTest {
 }
 ```
 
+### Test Utilities
+
+The library provides a convenience function for populating test data in `src/main/kotlin/Session.kt`:
+
+- **`Driver.populate(query: String)`**: Convenience function for quickly inserting test data
+  - Automatically creates a session and executes a write transaction
+  - Properly handles resource cleanup
+  - Available as part of the public API (can be used in any project that depends on this library)
+  - Accepts optional `sessionConfig` and `transactionConfig` parameters
+  - Example usage:
+    ```kotlin
+    @Test
+    fun `test with data`() = runTest {
+        driver.populate("CREATE (p:Person {name: 'Alice', age: 30})")
+
+        // test code that uses the data
+    }
+    ```
+
 ## Build Configuration
 
 - **Kotlin**: Explicit API mode enabled (`kotlin.explicitApi()`)

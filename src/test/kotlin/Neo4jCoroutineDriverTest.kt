@@ -155,25 +155,19 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should store and retrieve a node using Flow collection`() = runTest {
 
-        driver.coroutineSession().use { session ->
-
-            // given: a person is created in the database
-            session.executeWrite { tx ->
-                tx.run("""
-                    CREATE (alice:Person {
-                        id: 'p001',
-                        name: 'Alice Johnson',
-                        email: 'alice.johnson@email.com',
-                        age: 28,
-                        city: 'New York',
-                        skills: ['Python', 'JavaScript', 'SQL'],
-                        active: true,
-                        createdAt: datetime('2023-01-15T10:30:00')
-                    });
-                """.trimIndent())
-            }
-
-        }
+        // given: a person is created in the database
+        driver.populate("""
+            CREATE (alice:Person {
+                id: 'p001',
+                name: 'Alice Johnson',
+                email: 'alice.johnson@email.com',
+                age: 28,
+                city: 'New York',
+                skills: ['Python', 'JavaScript', 'SQL'],
+                active: true,
+                createdAt: datetime('2023-01-15T10:30:00')
+            });
+        """.trimIndent())
 
         // when: querying the database and collecting the Flow of records
         val person = driver.coroutineSession().use { session ->
@@ -213,11 +207,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should return keys from Result`() = runTest {
         // given: a query that returns specific columns
-        driver.coroutineSession().use { session ->
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'Bob', age: 30})")
-            }
-        }
+        driver.populate("CREATE (p:Person {name: 'Bob', age: 30})")
 
         // when: running a query and getting keys
         val result = driver.coroutineSession().use { session ->
@@ -276,9 +266,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should consume result and return summary`() = runTest {
         // given: a node creation query
-        driver.coroutineSession().executeWrite { tx ->
-            tx.run("CREATE (p:Person {name: 'Charlie'})")
-        }
+        driver.populate("CREATE (p:Person {name: 'Charlie'})")
 
         // when: running a query and consuming without collecting records
         val result = driver.coroutineSession().executeRead { tx ->
@@ -311,9 +299,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should use managed transaction with executeWrite and executeRead`() = runTest {
         // given: data in the database
-        driver.coroutineSession().executeWrite { tx ->
-            tx.run("CREATE (p:Person {name: 'Dana', age: 25})")
-        }
+        driver.populate("CREATE (p:Person {name: 'Dana', age: 25})")
 
         // when: using executeRead for a read transaction
         val count = driver.coroutineSession().executeRead { tx ->
@@ -434,11 +420,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw ResultConsumedException when collecting records after consume()`() = runTest {
         // given: data in the database
-        driver.coroutineSession().use { session ->
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'TestPerson', age: 42})")
-            }
-        }
+        driver.populate("CREATE (p:Person {name: 'TestPerson', age: 42})")
 
         // when: getting a result, consuming it first, then trying to collect records
         val result = driver.coroutineSession().run(
@@ -535,11 +517,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should auto consume result after records Flow is collected`() = runTest {
         // given: data in the database
-        driver.coroutineSession().use { session ->
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'Dana', age: 25})")
-            }
-        }
+        driver.populate("CREATE (p:Person {name: 'Dana', age: 25})")
 
         // when: using executeRead for a read transaction
         driver.coroutineSession().use { session ->
@@ -562,11 +540,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should auto consume result when collecting records Flow throws an exception`() = runTest {
         // given: data in the database
-        driver.coroutineSession().use { session ->
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'Dana', age: 25})")
-            }
-        }
+        driver.populate("CREATE (p:Person {name: 'Dana', age: 25})")
 
         // when: using executeRead for a read transaction
         driver.coroutineSession().use { session ->
@@ -594,13 +568,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw exception when records is called more than once`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: data in the database
+        driver.populate("CREATE (p:Person {name: 'Eve', age: 30})")
 
-            // given
-            // data in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'Eve', age: 30})")
-            }
+        driver.coroutineSession().use { session ->
 
             // retrieved
             val result = session.run("MATCH (p:Person) WHERE p.name = 'Eve' RETURN p")
@@ -623,12 +594,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should return single record when result has exactly one record`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: exactly one person in the database
+        driver.populate("CREATE (p:Person {name: 'SinglePerson', age: 42})")
 
-            // given: exactly one person in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'SinglePerson', age: 42})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when: querying for that one person using single()
             val record = session.executeRead { tx ->
@@ -650,12 +619,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw NoSuchRecordException when single() is called with zero records`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: no matching records in the database
+        driver.populate("CREATE (p:Person {name: 'OtherPerson', age: 30})")
 
-            // given: no matching records in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'OtherPerson', age: 30})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when/then: calling single() should throw NoSuchRecordException
             assertFailsWith<NoSuchRecordException> {
@@ -673,14 +640,14 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw NoSuchRecordException when single() is called with multiple records`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: multiple people in the database
+        driver.populate("""
+            CREATE (p1:Person {name: 'Alice', age: 25})
+            CREATE (p2:Person {name: 'Bob', age: 30})
+            CREATE (p3:Person {name: 'Charlie', age: 35})
+        """.trimIndent())
 
-            // given: multiple people in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p1:Person {name: 'Alice', age: 25})")
-                tx.run("CREATE (p2:Person {name: 'Bob', age: 30})")
-                tx.run("CREATE (p3:Person {name: 'Charlie', age: 35})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when/then: calling single() should throw NoSuchRecordException
             assertFailsWith<NoSuchRecordException> {
@@ -698,12 +665,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw ResultConsumedException when single() is called after consume()`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: data in the database
+        driver.populate("CREATE (p:Person {name: 'TestPerson', age: 40})")
 
-            // given: data in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'TestPerson', age: 40})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when: getting a result, consuming it first, then trying to call single()
             val result = session.run(
@@ -725,12 +690,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw ResultConsumedException when single() is called after records() collection`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: data in the database
+        driver.populate("CREATE (p:Person {name: 'AnotherPerson', age: 45})")
 
-            // given: data in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'AnotherPerson', age: 45})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when: getting a result, collecting records first, then trying to call single()
             val result = session.run(
@@ -752,12 +715,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should return single record when singleOrNull() is called with exactly one record`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: exactly one person in the database
+        driver.populate("CREATE (p:Person {name: 'OnlyPerson', age: 50})")
 
-            // given: exactly one person in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'OnlyPerson', age: 50})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when: querying for that one person using singleOrNull()
             val record = session.executeRead { tx ->
@@ -779,12 +740,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should return null when singleOrNull() is called with zero records`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: no matching records in the database
+        driver.populate("CREATE (p:Person {name: 'SomeOtherPerson', age: 25})")
 
-            // given: no matching records in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'SomeOtherPerson', age: 25})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when: calling singleOrNull() with no matching records
             val record = session.executeRead { tx ->
@@ -803,14 +762,14 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw NoSuchRecordException when singleOrNull() is called with multiple records`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: multiple people in the database
+        driver.populate("""
+            CREATE (p1:Person {name: 'David', age: 28})
+            CREATE (p2:Person {name: 'Emma', age: 32})
+            CREATE (p3:Person {name: 'Frank', age: 45})
+        """.trimIndent())
 
-            // given: multiple people in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p1:Person {name: 'David', age: 28})")
-                tx.run("CREATE (p2:Person {name: 'Emma', age: 32})")
-                tx.run("CREATE (p3:Person {name: 'Frank', age: 45})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when
             val error = assertFailsWith<NoSuchRecordException> {
@@ -830,12 +789,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw ResultConsumedException when singleOrNull() is called after consume()`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: data in the database
+        driver.populate("CREATE (p:Person {name: 'ConsumedPerson', age: 38})")
 
-            // given: data in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'ConsumedPerson', age: 38})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when: getting a result, consuming it first, then trying to call singleOrNull()
             val result = session.run(
@@ -857,12 +814,10 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw ResultConsumedException when singleOrNull() is called after records() collection`() = runTest {
 
-        driver.coroutineSession().use { session ->
+        // given: data in the database
+        driver.populate("CREATE (p:Person {name: 'CollectedPerson', age: 55})")
 
-            // given: data in the database
-            session.executeWrite { tx ->
-                tx.run("CREATE (p:Person {name: 'CollectedPerson', age: 55})")
-            }
+        driver.coroutineSession().use { session ->
 
             // when: getting a result, collecting records first, then trying to call singleOrNull()
             val result = session.run(
@@ -1037,6 +992,108 @@ class Neo4jCoroutineDriverTest {
             executor.shutdown()
             executor.awaitTermination(1, TimeUnit.MINUTES)
         }
+    }
+
+    @Test
+    fun `should perform write and read using driver shortcuts with default configs`() = runTest {
+        // given: write using driver.write shortcut
+        driver.write { tx ->
+            tx.run(
+                $$"""
+                    CREATE (a:Person {name: $name, age: $age})
+                """.trimIndent(),
+                mapOf(
+                    "name" to "Bob",
+                    "age" to 42
+                )
+            )
+        }
+
+        // when: read using driver.read shortcut
+        val (name, age) = driver.read { tx ->
+            val records = tx.run(
+                "MATCH (p:Person {name: 'Bob'}) RETURN p.name AS name, p.age AS age"
+            ).records().toList()
+
+            records.first().let {
+                it["name"].asString() to it["age"].asInt()
+            }
+        }
+
+        // then
+        assert(name == "Bob")
+        assert(age == 42)
+    }
+
+    @Test
+    fun `should perform write and read using driver shortcuts with explicit configs`() = runTest {
+        // given: write using driver.write shortcut with explicit TransactionConfig
+        val txConfig = TransactionConfig {
+            timeout = 5.seconds
+        }
+
+        driver.write(transactionConfig = txConfig) { tx ->
+            tx.run("CREATE (a:Person {name: 'Charlie', age: 30})")
+        }
+
+        // when: read using driver.read shortcut with explicit TransactionConfig
+        val name = driver.read(transactionConfig = txConfig) { tx ->
+            tx.run(
+                "MATCH (p:Person {name: 'Charlie'}) RETURN p.name AS name"
+            ).records().map { it["name"].asString() }.first()
+        }
+
+        assert(name == "Charlie")
+    }
+
+    @Test
+    fun `should populate database using populate shortcut`() = runTest {
+        // when: using populate to insert test data
+        driver.populate(
+            """
+                CREATE (p1:Person {name: 'Dave', age: 35})
+                CREATE (p2:Person {name: 'Eve', age: 28})
+                CREATE (p1)-[:KNOWS]->(p2)
+            """.trimIndent()
+        )
+
+        // then: data should be accessible
+        val count = driver.read { tx ->
+            tx.run("MATCH (p:Person) RETURN count(p) AS count")
+                .single()["count"].asInt()
+        }
+
+        assert(count == 2)
+
+        // and: relationships should exist
+        val relationshipCount = driver.read { tx ->
+            tx.run("MATCH ()-[r:KNOWS]->() RETURN count(r) AS count")
+                .single()["count"].asInt()
+        }
+
+        assert(relationshipCount == 1)
+    }
+
+    @Test
+    fun `should populate database with custom configs`() = runTest {
+        // given
+        val txConfig = TransactionConfig {
+            timeout = 5.seconds
+        }
+
+        // when: using populate with transaction config
+        driver.populate(
+            query = "CREATE (p:Person {name: 'Frank', age: 40})",
+            transactionConfig = txConfig
+        )
+
+        // then: data should be accessible
+        val name = driver.read { tx ->
+            tx.run("MATCH (p:Person {name: 'Frank'}) RETURN p.name AS name")
+                .single()["name"].asString()
+        }
+
+        assert(name == "Frank")
     }
 
 }
