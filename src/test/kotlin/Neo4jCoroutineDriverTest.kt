@@ -750,6 +750,138 @@ class Neo4jCoroutineDriverTest {
     }
 
     @Test
+    fun `should return single record when singleOrNull() is called with exactly one record`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: exactly one person in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p:Person {name: 'OnlyPerson', age: 50})")
+            }
+
+            // when: querying for that one person using singleOrNull()
+            val record = session.executeRead { tx ->
+                tx.run(
+                    "MATCH (p:Person) WHERE p.name = 'OnlyPerson' RETURN p.name AS name, p.age AS age"
+                ).singleOrNull()
+            }
+
+            // then: the record should contain the expected data
+            record should {
+                have(get("name").asString() == "OnlyPerson")
+                have(get("age").asInt() == 50)
+            }
+
+        }
+
+    }
+
+    @Test
+    fun `should return null when singleOrNull() is called with zero records`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: no matching records in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p:Person {name: 'SomeOtherPerson', age: 25})")
+            }
+
+            // when: calling singleOrNull() with no matching records
+            val record = session.executeRead { tx ->
+                tx.run(
+                    "MATCH (p:Person) WHERE p.name = 'NonExistentPerson' RETURN p"
+                ).singleOrNull()
+            }
+
+            // then: the result should be null
+            assert(record == null)
+
+        }
+
+    }
+
+    @Test
+    fun `should throw NoSuchRecordException when singleOrNull() is called with multiple records`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: multiple people in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p1:Person {name: 'David', age: 28})")
+                tx.run("CREATE (p2:Person {name: 'Emma', age: 32})")
+                tx.run("CREATE (p3:Person {name: 'Frank', age: 45})")
+            }
+
+            // when
+            val error = assertFailsWith<NoSuchRecordException> {
+                session.executeRead { tx ->
+                    tx.run(
+                        "MATCH (p:Person) RETURN p ORDER BY p.name"
+                    ).singleOrNull()
+                }
+            }
+
+            // then
+            assert(error.message == "Expected at most 1 record but found at least 2")
+        }
+
+    }
+
+    @Test
+    fun `should throw ResultConsumedException when singleOrNull() is called after consume()`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: data in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p:Person {name: 'ConsumedPerson', age: 38})")
+            }
+
+            // when: getting a result, consuming it first, then trying to call singleOrNull()
+            val result = session.run(
+                "MATCH (p:Person) WHERE p.name = 'ConsumedPerson' RETURN p"
+            )
+
+            // Consume the result first
+            result.consume()
+
+            // then: attempting to call singleOrNull() should throw ResultConsumedException
+            assertFailsWith<ResultConsumedException> {
+                result.singleOrNull()
+            }
+
+        }
+
+    }
+
+    @Test
+    fun `should throw ResultConsumedException when singleOrNull() is called after records() collection`() = runTest {
+
+        driver.coroutineSession().use { session ->
+
+            // given: data in the database
+            session.executeWrite { tx ->
+                tx.run("CREATE (p:Person {name: 'CollectedPerson', age: 55})")
+            }
+
+            // when: getting a result, collecting records first, then trying to call singleOrNull()
+            val result = session.run(
+                "MATCH (p:Person) WHERE p.name = 'CollectedPerson' RETURN p"
+            )
+
+            // Collect records first
+            result.records().collect()
+
+            // then: attempting to call singleOrNull() should throw ResultConsumedException
+            assertFailsWith<ResultConsumedException> {
+                result.singleOrNull()
+            }
+
+        }
+
+    }
+
+    @Test
     fun `should accept database parameter in session configuration`() = runTest {
         // when: creating a session with database parameter
         // Note: Neo4j harness uses the default database regardless of the parameter

@@ -17,7 +17,9 @@
 package com.xemantic.neo4j.driver
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import org.neo4j.driver.Record
+import org.neo4j.driver.exceptions.NoSuchRecordException
 import org.neo4j.driver.exceptions.ResultConsumedException
 import org.neo4j.driver.summary.ResultSummary
 import java.util.concurrent.TimeUnit
@@ -125,6 +127,35 @@ public interface Result {
      */
     public suspend fun isOpen(): Boolean
 
+}
+
+/**
+ * Returns the single record from the result, or `null` if the result is empty.
+ *
+ * This extension function collects the result stream and returns:
+ * - `null` if there are no records
+ * - The single record if there is exactly one record
+ * - Throws [org.neo4j.driver.exceptions.NoSuchRecordException] if there are multiple records
+ *
+ * @return the single record, or `null` if empty
+ * @throws org.neo4j.driver.exceptions.NoSuchRecordException if there is more than one record
+ * @throws ResultConsumedException if records are consumed more than once
+ */
+public suspend fun Result.singleOrNull(): Record? {
+    var record: Record? = null
+    var count = 0
+
+    records().collect { currentRecord ->
+        count++
+        when (count) {
+            1 -> record = currentRecord
+            2 -> throw NoSuchRecordException(
+                "Expected at most 1 record but found at least 2"
+            )
+        }
+    }
+
+    return record
 }
 
 public fun ResultSummary.resultAvailableAfter(): Duration = resultAvailableAfter(
