@@ -238,10 +238,35 @@ val storedPerson = neo4j.read { tx ->
 println(storedPerson)
 ```
 
-The `toObject<T>()` extension function converts Neo4j nodes/relationships to Kotlin objects.
+The `toObject<T>()` extension function converts Neo4j nodes, relationships, and records to Kotlin objects.
+
+**Supported sources:**
+- **Nodes** - `record["p"].toObject<Person>()`
+- **Relationships** - `record["r"].toObject<Knows>()`
+- **Records with map projections** - `record.toObject<Person>()` when using `RETURN p.name AS name, p.age AS age`
+
+#### Using map projections
+
+Map projections allow you to create nested structures in query results:
+
+```kotlin
+@Serializable
+data class Address(val street: String, val city: String, val zipCode: String)
+
+@Serializable
+data class PersonWithAddress(val name: String, val age: Int, val address: Address)
+
+val person = neo4j.read { tx ->
+    tx.run("""
+        MATCH (p:Person)
+        RETURN p.name AS name, p.age AS age,
+               {street: p.street, city: p.city, zipCode: p.zipCode} AS address
+    """.trimIndent()).single().toObject<PersonWithAddress>()
+}
+```
 
 > [!NOTE]
-> Only flat properties are supported (primitives, lists of primitives, enums). Nested objects require separate nodes connected by relationships.
+> Only flat properties are supported in node/relationship storage (primitives, lists of primitives, enums). Nested objects require separate nodes connected by relationships, but can be retrieved using map projections in Cypher queries.
 
 ### Flow-based Streaming
 
