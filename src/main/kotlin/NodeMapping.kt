@@ -85,11 +85,25 @@ public inline fun <reified T> T.toProperties(): Map<String, Any?> {
 }
 
 /**
- * Converts a Neo4j [Value] containing a [Node] or [Relationship] to a [kotlinx.serialization.Serializable] Kotlin object.
+ * Converts a Neo4j [MapAccessor] to a [kotlinx.serialization.Serializable] Kotlin object.
  *
- * This is a convenience function that simplifies the common pattern of extracting an entity from a Value
- * and converting it to an object. Instead of chaining `.asNode().toObject<T>()` or `.asRelationship().toObject<T>()`,
- * you can directly call `.toObject<T>()` on the Value.
+ * This function works with any [MapAccessor] implementation, including:
+ * - [Value] - Neo4j values returned from queries (e.g., `record["p"]`)
+ * - [Node] - Neo4j nodes
+ * - [Relationship] - Neo4j relationships
+ * - [Record] - Query result records (when using map projections)
+ * - Any other [MapAccessor] containing property data
+ *
+ * **Note:** For [Value] objects containing [Node] or [Relationship], the function automatically
+ * extracts the underlying entity before conversion.
+ *
+ * The conversion handles:
+ * - Primitive types (String, Int, Long, Double, Boolean)
+ * - Nullable fields
+ * - Collections (List, Set)
+ * - Enums (converted from their string representation)
+ * - Nested objects (from map projections or nested maps)
+ * - DateTime values (converted to/from kotlin.time.Instant)
  *
  * Sample usage:
  *
@@ -101,46 +115,53 @@ public inline fun <reified T> T.toProperties(): Map<String, Any?> {
  * data class Knows(val since: Int)
  *
  * neo4j.read { tx ->
- *     // Simplified API - no need for .asNode()
- *     val result = tx.run("MATCH (p:Person) RETURN p")
- *     result.records().collect { record ->
+ *     // Works with Value (record["p"] returns a Value)
+ *     tx.run(
+ *         "MATCH (p:Person) RETURN p"
+ *     ).records().collect { record ->
  *         val person = record["p"].toObject<Person>()
  *         println(person) // Person(name="Alice", age=30)
  *     }
  *
- *     // Works for relationships too - no need for .asRelationship()
- *     val relResult = tx.run("MATCH ()-[r:KNOWS]->() RETURN r")
- *     relResult.records().collect { record ->
+ *     // Works with relationships
+ *     tx.run(
+ *         "MATCH ()-[r:KNOWS]->() RETURN r"
+ *     ).records().collect { record ->
  *         val knows = record["r"].toObject<Knows>()
  *         println(knows) // Knows(since=2020)
+ *     }
+ *
+ *     // Works with records (map projections)
+ *     tx.run(
+ *         "MATCH (p:Person) RETURN p.name AS name, p.age AS age"
+ *     ).records().collect { record ->
+ *         val person = record.toObject<Person>()
+ *         println(person) // Person(name="Alice", age=30)
  *     }
  * }
  * ```
  *
  * @param T the type to deserialize to (must be [kotlinx.serialization.Serializable])
  * @return the deserialized object
- * @throws IllegalArgumentException if the Value is not a Node or Relationship
+ * @throws IllegalArgumentException if Value type is not a Node or Relationship
  * @throws kotlinx.serialization.SerializationException if deserialization fails
  *
  * @see toProperties
  */
-public inline fun <reified T> Value.toObject(): T = when (this) {
-    is NodeValue -> (asNode() as MapAccessor).toObject()
-    is RelationshipValue -> (asRelationship() as MapAccessor).toObject()
-    else -> throw IllegalArgumentException(
-        "Value must be a Node or Relationship to convert to object, but was ${type().name()}. " +
-        "Use .asNode() for nodes or .asRelationship() for relationships before calling toObject(), " +
-        "or ensure your Cypher query returns nodes/relationships (e.g., 'RETURN n' not 'RETURN n.name')."
-    )
-}
+public inline fun <reified T> MapAccessor.toObject(): T {
+    // Handle Value wrappers by extracting the underlying Node/Relationship
+    val mapAccessor = when (this) {
+        is NodeValue -> asNode()
+        is RelationshipValue -> asRelationship()
+        is Value -> throw IllegalArgumentException(
+            "Value must be a Node or Relationship to convert to object, but was ${type().name()}. " +
+            "Ensure your Cypher query returns nodes/relationships (e.g., 'RETURN n' not 'RETURN n.name')."
+        )
+        else -> this
+    }
 
-/**
- * Internal function to convert a MapAccessor to a serializable object.
- */
-@PublishedApi
-internal inline fun <reified T> MapAccessor.toObject(): T {
     val serializer = serializer<T>()
-    val decoder = MapAccessorDecoder(this)
+    val decoder = MapAccessorDecoder(mapAccessor)
     return decoder.decodeSerializableValue(serializer)
 }
 
