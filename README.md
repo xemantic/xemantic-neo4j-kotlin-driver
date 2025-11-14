@@ -45,6 +45,15 @@ println(name) // "Alice"
 
 See [ReadmeExamples.kt](src/test/kotlin/ReadmeExamples.kt) for all runnable examples.
 
+## Demo Project
+
+For a complete example of building Neo4j-backed REST APIs with Ktor, see the [xemantic-neo4j-demo](https://github.com/xemantic/xemantic-neo4j-demo) project. It demonstrates:
+
+- Fully non-blocking database operations using Kotlin coroutines
+- Safe session management and connection pooling
+- Memory-efficient streaming with Kotlin Flow
+- Test-driven development with embedded Neo4j
+
 ## Features
 
 ### High-Level API
