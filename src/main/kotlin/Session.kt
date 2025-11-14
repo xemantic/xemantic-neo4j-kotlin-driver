@@ -16,7 +16,9 @@
 
 package com.xemantic.neo4j.driver
 
+import com.xemantic.kotlin.core.SuspendCloseable
 import com.xemantic.neo4j.driver.internal.InternalSession
+import kotlinx.coroutines.flow.Flow
 import org.intellij.lang.annotations.Language
 import org.neo4j.driver.*
 import org.neo4j.driver.async.AsyncSession
@@ -66,110 +68,6 @@ public fun Driver.coroutineSession(
 ): Session = InternalSession(
     session(AsyncSession::class.java, config)
 )
-
-/**
- * Execute a unit of work as a single, managed read transaction with automatic session lifecycle management.
- *
- * This is a convenience function that creates a session, executes a read transaction, and automatically
- * closes the session when complete. It's ideal for simple read operations that don't require multiple
- * transactions on the same session.
- *
- * The transaction allows for one or more statements to be run within the provided callback.
- * The driver will automatically commit the transaction when the callback completes successfully,
- * or rollback if an exception is thrown.
- *
- * Sample usage:
- *
- * ```
- * val result = driver.read { tx ->
- *     tx.run("MATCH (n:Person) RETURN n").records().toList()
- * }
- * ```
- *
- * @param sessionConfig configuration for the session.
- * @param transactionConfig configuration for the transaction.
- * @param block the suspend callback representing the unit of work.
- * @param T the return type of the given unit of work.
- * @return the result of the unit of work.
- *
- * @see Session.executeRead
- */
-public suspend fun <T> Driver.read(
-    sessionConfig: SessionConfig = SessionConfig.defaultConfig(),
-    transactionConfig: TransactionConfig = TransactionConfig.empty(),
-    block: suspend (tx: TransactionContext) -> T
-): T = coroutineSession(sessionConfig).use { session ->
-    session.executeRead(transactionConfig, block)
-}
-
-/**
- * Execute a unit of work as a single, managed write transaction with automatic session lifecycle management.
- *
- * This is a convenience function that creates a session, executes a write transaction, and automatically
- * closes the session when complete. It's ideal for simple write operations that don't require multiple
- * transactions on the same session.
- *
- * The transaction allows for one or more statements to be run within the provided callback.
- * The driver will automatically commit the transaction when the callback completes successfully,
- * or rollback if an exception is thrown.
- *
- * Sample usage:
- *
- * ```
- * driver.write { tx ->
- *     tx.run("CREATE (n:Person {name: 'Alice'})")
- * }
- * ```
- *
- * @param sessionConfig configuration for the session.
- * @param transactionConfig configuration for the transaction.
- * @param block the suspend callback representing the unit of work.
- * @param T the return type of the given unit of work.
- * @return the result of the unit of work.
- *
- * @see Session.executeWrite
- */
-public suspend fun <T> Driver.write(
-    sessionConfig: SessionConfig = SessionConfig.defaultConfig(),
-    transactionConfig: TransactionConfig = TransactionConfig.empty(),
-    block: suspend (tx: TransactionContext) -> T
-): T = coroutineSession(sessionConfig).use { session ->
-    session.executeWrite(transactionConfig, block)
-}
-
-/**
- * Populates the database with data using the provided Cypher query.
- *
- * This is a convenience function that creates a session, executes a write transaction with the provided query,
- * and automatically closes the session when complete. It's particularly useful in tests and utilities
- * for quickly setting up database state without boilerplate session management.
- *
- * Sample usage:
- *
- * ```
- * driver.populate("""
- *     CREATE (p1:Person {name: 'Alice', age: 30})
- *     CREATE (p2:Person {name: 'Bob', age: 25})
- * """.trimIndent())
- * ```
- *
- * @param query The Cypher query to execute for populating data
- * @param sessionConfig configuration for the session.
- * @param transactionConfig configuration for the transaction.
- *
- * @see Driver.write
- */
-public suspend fun Driver.populate(
-    @Language("cypher") query: String,
-    sessionConfig: SessionConfig = SessionConfig.defaultConfig(),
-    transactionConfig: TransactionConfig = TransactionConfig.empty()
-) {
-    coroutineSession(sessionConfig).use { session ->
-        session.executeWrite(transactionConfig) { tx ->
-            tx.run(query)
-        }
-    }
-}
 
 /**
  * A coroutine session provides a Kotlin-idiomatic API for interacting with Neo4j using structured concurrency.
@@ -391,6 +289,104 @@ public interface Session : BaseSession, QueryRunner, SuspendCloseable {
     )
 
     /**
+     * Create a Flow that executes a query in a read transaction and streams the resulting records.
+     *
+     * This convenience function automatically executes a query in a managed read transaction
+     * and returns its records as a Flow. The transaction is automatically managed with retry behavior,
+     * and resources are cleaned up after the Flow completes.
+     *
+     * This is particularly useful within session-based operations where you need to stream query results
+     * without manually managing the transaction scope.
+     *
+     * Sample usage:
+     *
+     * ```
+     * driver.coroutineSession().use { session ->
+     *     session.executeWrite { tx ->
+     *         tx.run("CREATE (p:Person {name: 'Alice'})")
+     *     }
+     *     // Stream results from a read transaction
+     *     session.flow(Query("MATCH (p:Person) RETURN p")).collect { record ->
+     *         println(record["p"])
+     *     }
+     * }
+     * ```
+     *
+     * @param query the Neo4j query to execute.
+     * @param config configuration for the read transaction.
+     * @return a Flow that emits Record elements from the query result.
+     *
+     * @see executeRead
+     */
+    public fun flow(
+        query: Query,
+        config: TransactionConfig = TransactionConfig.empty()
+    ): Flow<Record>
+
+    /**
+     * Create a Flow that executes a query in a read transaction and streams the resulting records.
+     *
+     * This convenience function automatically executes a query with parameters in a managed
+     * read transaction and returns its records as a Flow. The transaction is automatically managed
+     * with retry behavior, and resources are cleaned up after the Flow completes.
+     *
+     * Sample usage:
+     *
+     * ```
+     * driver.coroutineSession().use { session ->
+     *     session.flow(
+     *         query = $$"MATCH (p:Person) WHERE p.age > $minAge RETURN p",
+     *         parameters = mapOf("minAge" to 25)
+     *     ).collect { record ->
+     *         println(record["p"])
+     *     }
+     * }
+     * ```
+     *
+     * @param query the Cypher query string to execute.
+     * @param parameters input parameters for the query.
+     * @param config configuration for the read transaction.
+     * @return a Flow that emits Record elements from the query result.
+     *
+     * @see executeRead
+     */
+    public fun flow(
+        @Language("cypher")
+        query: String,
+        parameters: Map<String, Any?>,
+        config: TransactionConfig = TransactionConfig.empty()
+    ): Flow<Record> = flow(Query(query, parameters), config)
+
+    /**
+     * Create a Flow that executes a query in a read transaction and streams the resulting records.
+     *
+     * This convenience function for queries without parameters. The transaction is
+     * automatically managed with retry behavior, and resources are cleaned up after the Flow completes.
+     *
+     * Sample usage:
+     *
+     * ```
+     * driver.coroutineSession().use { session ->
+     *     session.flow("MATCH (p:Person) RETURN p.name AS name ORDER BY p.name")
+     *         .collect { record ->
+     *             println(record["name"])
+     *         }
+     * }
+     * ```
+     *
+     * @param query the Cypher query string to execute.
+     * @param config configuration for the read transaction.
+     * @return a Flow that emits Record elements from the query result.
+     *
+     * @see executeRead
+     */
+    public fun flow(
+        @Language("cypher")
+        query: String,
+        config: TransactionConfig = TransactionConfig.empty()
+    ): Flow<Record> = flow(Query(query), config)
+
+    /**
      * Run a query with parameters in an auto-commit transaction with specified [TransactionConfig] and return a [Result].
      *
      * Invoking this method will result in a Bolt RUN message exchange with the server.
@@ -566,6 +562,9 @@ public class SessionConfigBuilder {
 
     /**
      * The initial bookmarks.
+     *
+     * **Note:** Use either [bookmarks] or [bookmarkManager], not both. Setting [bookmarkManager]
+     * will take precedence and [bookmarks] will be ignored if both are set.
      */
     public var bookmarks: MutableList<Bookmark>? = mutableListOf()
 
@@ -591,6 +590,9 @@ public class SessionConfigBuilder {
 
     /**
      * The bookmark manager.
+     *
+     * **Note:** Use either [bookmarks] or [bookmarkManager], not both. Setting [bookmarkManager]
+     * will take precedence and [bookmarks] will be ignored if both are set.
      */
     public var bookmarkManager: BookmarkManager? = null
 

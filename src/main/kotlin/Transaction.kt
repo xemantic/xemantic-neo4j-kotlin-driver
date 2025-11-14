@@ -16,6 +16,7 @@
 
 package com.xemantic.neo4j.driver
 
+import com.xemantic.kotlin.core.SuspendCloseable
 import org.neo4j.driver.TransactionConfig
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration

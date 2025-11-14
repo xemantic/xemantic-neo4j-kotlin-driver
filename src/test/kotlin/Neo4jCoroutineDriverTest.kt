@@ -16,198 +16,40 @@
 
 package com.xemantic.neo4j.driver
 
+import com.xemantic.kotlin.core.use
 import com.xemantic.kotlin.test.assert
 import com.xemantic.kotlin.test.coroutines.should
 import com.xemantic.kotlin.test.have
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.extension.ExtendWith
-import org.neo4j.driver.AuthTokens
-import org.neo4j.driver.Driver
-import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.exceptions.NoSuchRecordException
 import org.neo4j.driver.exceptions.ResultConsumedException
 import org.neo4j.driver.summary.QueryType
-import org.neo4j.harness.Neo4j
-import org.neo4j.harness.junit.extension.Neo4jExtension
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.test.assertFailsWith
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Instant
-import kotlin.time.measureTime
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(Neo4jExtension::class)
 class Neo4jCoroutineDriverTest {
 
-    lateinit var driver: Driver
+    private val driver = TestNeo4j.driver
 
-    @BeforeAll
-    fun setUpDriver(neo4j: Neo4j) {
-        driver = GraphDatabase.driver(neo4j.boltURI(), AuthTokens.none())
-    }
-
-    @AfterEach
-    fun cleanDatabase() {
-        driver.executableQuery("MATCH (n) DETACH DELETE n").execute()
-    }
-
-    @Test
-    fun `README example`() = runTest {
-
-        // Write to the database
-
-        val summary = driver.coroutineSession().use { session ->
-            session.executeWrite { tx ->
-                tx.run(
-                    // multi-dollar interpolation allows to include $ without escaping
-                    query = $$"""
-                        CREATE (a:Person {name: $name})
-                        CREATE (b:Person {name: $friendName})
-                        CREATE (a)-[:KNOWS]->(b)
-                    """.trimIndent(),
-                    // named `query` and `parameters` parameters can be skipped if you prefer
-                    parameters = mapOf(
-                        "name" to "Alice",
-                        "friendName" to "David"
-                    )
-                ).consume() // ensures that the ResultSummary is returned
-            }
-        }
-
-        println(
-            "Created ${summary.counters().nodesCreated()} " +
-                    "in ${summary.resultAvailableAfter(TimeUnit.MILLISECONDS)} ms."
-        )
-
-        // Read from the database
-
-        val (names, readSummary) = driver.coroutineSession().use { session ->
-            session.executeRead { tx ->
-                val result = tx.run(
-                    "MATCH (p:Person)-[:KNOWS]->(:Person) RETURN p.name AS name"
-                )
-                val names = result.records().map {
-                    it["name"].asString()
-                }.toList()
-                val summary = result.consume()
-                names to summary
-            }
-        }
-
-        println(
-            "The query ${readSummary.query()} " +
-                    "returned ${names.size} records " +
-                    "in ${readSummary.resultAvailableAfter(TimeUnit.MILLISECONDS)} ms."
-        )
-        println("Returned names: $names")
-
-    }
-
-    @Test
-    fun `should perform simple write - README example`() = runTest {
-
-        val summary = driver.coroutineSession().use { session ->
-            session.executeWrite { tx ->
-                tx.run(
-                    // multi-dollar interpolation allows to include $ without escaping
-                    query = $$"""
-                        CREATE (a:Person {name: $name})
-                        CREATE (b:Person {name: $friendName})
-                        CREATE (a)-[:KNOWS]->(b)
-                    """.trimIndent(),
-                    // named `query` and `parameters` parameters can be skipped if you prefer
-                    parameters = mapOf(
-                        "name" to "Alice",
-                        "friendName" to "David"
-                    )
-                ).consume() // ensures that the ResultSummary is returned
-            }
-        }
-
-        println(
-            "Created ${summary.counters().nodesCreated()}" +
-                    " in ${summary.resultAvailableAfter(TimeUnit.MILLISECONDS)} ms."
-        )
-        assert(summary.counters().nodesCreated() == 2)
-    }
-
-    // given
-    data class Person(
-        val id: String,
-        val name: String,
-        val email: String,
-        val age: Int,
-        val city: String,
-        val skills: List<String>,
-        val active: Boolean,
-        val createdAt: Instant
+    // defined here just for convenience of the populate function
+    private val neo4j = DispatchedNeo4jOperations(
+        driver = TestNeo4j.driver,
+        dispatcher = Dispatchers.IO.limitedParallelism(90)
     )
 
-    @Test
-    fun `should store and retrieve a node using Flow collection`() = runTest {
-
-        // given: a person is created in the database
-        driver.populate("""
-            CREATE (alice:Person {
-                id: 'p001',
-                name: 'Alice Johnson',
-                email: 'alice.johnson@email.com',
-                age: 28,
-                city: 'New York',
-                skills: ['Python', 'JavaScript', 'SQL'],
-                active: true,
-                createdAt: datetime('2023-01-15T10:30:00')
-            });
-        """.trimIndent())
-
-        // when: querying the database and collecting the Flow of records
-        val person = driver.coroutineSession().use { session ->
-            session.executeRead { tx ->
-                tx.run(
-                    "MATCH (p:Person) RETURN p"
-                ).records().map { record ->
-                    record["p"].let { p ->
-                        Person(
-                            id =        p["id"].asString(),
-                            name =      p["name"].asString(),
-                            email =     p["email"].asString(),
-                            age =       p["age"].asInt(),
-                            city =      p["city"].asString(),
-                            skills =    p["skills"].asList { it.asString() },
-                            active =    p["active"].asBoolean(),
-                            createdAt = p["createdAt"].asInstant()
-                        )
-                    }
-                }.first()
-            }
-        }
-
-        // then: the person data matches what was stored
-        person should {
-            have(id == "p001")
-            have(name == "Alice Johnson")
-            have(email == "alice.johnson@email.com")
-            have(age == 28)
-            have(city == "New York")
-            have(skills == listOf("Python", "JavaScript", "SQL"))
-            have(active)
-            have(createdAt == Instant.parse("2023-01-15T10:30:00Z"))
-        }
+    @AfterEach
+    fun cleanUp() {
+        TestNeo4j.cleanDatabase()
     }
 
     @Test
     fun `should return keys from Result`() = runTest {
         // given: a query that returns specific columns
-        driver.populate("CREATE (p:Person {name: 'Bob', age: 30})")
+        neo4j.populate("CREATE (p:Person {name: 'Bob', age: 30})")
 
         // when: running a query and getting keys
         val result = driver.coroutineSession().use { session ->
@@ -266,7 +108,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should consume result and return summary`() = runTest {
         // given: a node creation query
-        driver.populate("CREATE (p:Person {name: 'Charlie'})")
+        neo4j.populate("CREATE (p:Person {name: 'Charlie'})")
 
         // when: running a query and consuming without collecting records
         val result = driver.coroutineSession().executeRead { tx ->
@@ -299,7 +141,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should use managed transaction with executeWrite and executeRead`() = runTest {
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'Dana', age: 25})")
+        neo4j.populate("CREATE (p:Person {name: 'Dana', age: 25})")
 
         // when: using executeRead for a read transaction
         val count = driver.coroutineSession().executeRead { tx ->
@@ -314,7 +156,6 @@ class Neo4jCoroutineDriverTest {
 
     @Test
     fun `should handle unmanaged transaction with manual commit`() = runTest {
-
         driver.coroutineSession().use { session ->
             // given
             val tx = session.beginTransaction()
@@ -328,20 +169,20 @@ class Neo4jCoroutineDriverTest {
 
             // then
             assert(!tx.isOpen()) // committed
-            val count = session.run("MATCH (p:Person) WHERE p.name = 'Frank' RETURN count(p) AS count")
-                .records()
-                .count()
+            val count = session.run(
+                "MATCH (p:Person) WHERE p.name = 'Frank' RETURN count(p) AS count"
+            ).single()["count"].asInt()
 
             assert(count == 1)
         }
 
         // verify with another session
-        driver.coroutineSession().use { session ->
-            val count = session.run("MATCH (p:Person) WHERE p.name = 'Frank' RETURN count(p) AS count")
-                .records()
-                .count()
-            assert(count == 1)
+        val count = neo4j.read { tx ->
+            tx.run(
+                "MATCH (p:Person) WHERE p.name = 'Frank' RETURN count(p) AS count"
+            ).single()["count"].asInt()
         }
+        assert(count == 1)
 
     }
 
@@ -356,13 +197,12 @@ class Neo4jCoroutineDriverTest {
 
         // Then: The node was NOT created
         val exists = session.executeRead { tx ->
-            tx.run("MATCH (p:Person) WHERE p.name = 'Grace' RETURN count(p) AS count")
-                .records()
-                .map { it["count"].asLong() }
-                .first()
+            tx.run(
+                "MATCH (p:Person) WHERE p.name = 'Grace' RETURN count(p) AS count"
+            ).single()["count"].asInt() > 0
         }
 
-        assert(exists == 0L)
+        assert(!exists)
     }
 
     @Test
@@ -420,7 +260,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should throw ResultConsumedException when collecting records after consume()`() = runTest {
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'TestPerson', age: 42})")
+        neo4j.populate("CREATE (p:Person {name: 'TestPerson', age: 42})")
 
         // when: getting a result, consuming it first, then trying to collect records
         val result = driver.coroutineSession().run(
@@ -517,7 +357,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should auto consume result after records Flow is collected`() = runTest {
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'Dana', age: 25})")
+        neo4j.populate("CREATE (p:Person {name: 'Dana', age: 25})")
 
         // when: using executeRead for a read transaction
         driver.coroutineSession().use { session ->
@@ -540,7 +380,7 @@ class Neo4jCoroutineDriverTest {
     @Test
     fun `should auto consume result when collecting records Flow throws an exception`() = runTest {
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'Dana', age: 25})")
+        neo4j.populate("CREATE (p:Person {name: 'Dana', age: 25})")
 
         // when: using executeRead for a read transaction
         driver.coroutineSession().use { session ->
@@ -569,7 +409,7 @@ class Neo4jCoroutineDriverTest {
     fun `should throw exception when records is called more than once`() = runTest {
 
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'Eve', age: 30})")
+        neo4j.populate("CREATE (p:Person {name: 'Eve', age: 30})")
 
         driver.coroutineSession().use { session ->
 
@@ -595,7 +435,7 @@ class Neo4jCoroutineDriverTest {
     fun `should return single record when result has exactly one record`() = runTest {
 
         // given: exactly one person in the database
-        driver.populate("CREATE (p:Person {name: 'SinglePerson', age: 42})")
+        neo4j.populate("CREATE (p:Person {name: 'SinglePerson', age: 42})")
 
         driver.coroutineSession().use { session ->
 
@@ -620,7 +460,7 @@ class Neo4jCoroutineDriverTest {
     fun `should throw NoSuchRecordException when single() is called with zero records`() = runTest {
 
         // given: no matching records in the database
-        driver.populate("CREATE (p:Person {name: 'OtherPerson', age: 30})")
+        neo4j.populate("CREATE (p:Person {name: 'OtherPerson', age: 30})")
 
         driver.coroutineSession().use { session ->
 
@@ -641,7 +481,7 @@ class Neo4jCoroutineDriverTest {
     fun `should throw NoSuchRecordException when single() is called with multiple records`() = runTest {
 
         // given: multiple people in the database
-        driver.populate("""
+        neo4j.populate("""
             CREATE (p1:Person {name: 'Alice', age: 25})
             CREATE (p2:Person {name: 'Bob', age: 30})
             CREATE (p3:Person {name: 'Charlie', age: 35})
@@ -666,7 +506,7 @@ class Neo4jCoroutineDriverTest {
     fun `should throw ResultConsumedException when single() is called after consume()`() = runTest {
 
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'TestPerson', age: 40})")
+        neo4j.populate("CREATE (p:Person {name: 'TestPerson', age: 40})")
 
         driver.coroutineSession().use { session ->
 
@@ -691,7 +531,7 @@ class Neo4jCoroutineDriverTest {
     fun `should throw ResultConsumedException when single() is called after records() collection`() = runTest {
 
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'AnotherPerson', age: 45})")
+        neo4j.populate("CREATE (p:Person {name: 'AnotherPerson', age: 45})")
 
         driver.coroutineSession().use { session ->
 
@@ -716,7 +556,7 @@ class Neo4jCoroutineDriverTest {
     fun `should return single record when singleOrNull() is called with exactly one record`() = runTest {
 
         // given: exactly one person in the database
-        driver.populate("CREATE (p:Person {name: 'OnlyPerson', age: 50})")
+        neo4j.populate("CREATE (p:Person {name: 'OnlyPerson', age: 50})")
 
         driver.coroutineSession().use { session ->
 
@@ -741,7 +581,7 @@ class Neo4jCoroutineDriverTest {
     fun `should return null when singleOrNull() is called with zero records`() = runTest {
 
         // given: no matching records in the database
-        driver.populate("CREATE (p:Person {name: 'SomeOtherPerson', age: 25})")
+        neo4j.populate("CREATE (p:Person {name: 'SomeOtherPerson', age: 25})")
 
         driver.coroutineSession().use { session ->
 
@@ -763,7 +603,7 @@ class Neo4jCoroutineDriverTest {
     fun `should throw NoSuchRecordException when singleOrNull() is called with multiple records`() = runTest {
 
         // given: multiple people in the database
-        driver.populate("""
+        neo4j.populate("""
             CREATE (p1:Person {name: 'David', age: 28})
             CREATE (p2:Person {name: 'Emma', age: 32})
             CREATE (p3:Person {name: 'Frank', age: 45})
@@ -790,7 +630,7 @@ class Neo4jCoroutineDriverTest {
     fun `should throw ResultConsumedException when singleOrNull() is called after consume()`() = runTest {
 
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'ConsumedPerson', age: 38})")
+        neo4j.populate("CREATE (p:Person {name: 'ConsumedPerson', age: 38})")
 
         driver.coroutineSession().use { session ->
 
@@ -815,7 +655,7 @@ class Neo4jCoroutineDriverTest {
     fun `should throw ResultConsumedException when singleOrNull() is called after records() collection`() = runTest {
 
         // given: data in the database
-        driver.populate("CREATE (p:Person {name: 'CollectedPerson', age: 55})")
+        neo4j.populate("CREATE (p:Person {name: 'CollectedPerson', age: 55})")
 
         driver.coroutineSession().use { session ->
 
@@ -851,9 +691,7 @@ class Neo4jCoroutineDriverTest {
             database = "neo4j"
         }.use { session ->
             session.run("MATCH (p:Person) RETURN count(p) AS count")
-                .records()
-                .map { it["count"].asInt() }
-                .first()
+                .single()["count"].asInt()
         }
         assert(count == 1)
     }
@@ -877,9 +715,7 @@ class Neo4jCoroutineDriverTest {
         // verify: data should be accessible
         val count = driver.coroutineSession().use { session ->
             session.run("MATCH (p:Person) WHERE p.name = 'Configured User' RETURN count(p) AS count")
-                .records()
-                .map { it["count"].asInt() }
-                .first()
+                .single()["count"].asInt()
         }
         assert(count == 1)
     }
@@ -908,192 +744,9 @@ class Neo4jCoroutineDriverTest {
         // verify: data should be accessible
         val count = driver.coroutineSession().use { session ->
             session.run("MATCH (p:Person) WHERE p.name = 'Managed Transaction User' RETURN count(p) AS count")
-                .records()
-                .map { it["count"].asInt() }
-                .first()
+                .single()["count"].asInt()
         }
         assert(count == 1)
-    }
-
-    // performance tests
-    @Test
-    fun `should stream big amount of data with minimal impact`() = runTest {
-        val duration = measureTime {
-            val (last, summary) = driver.coroutineSession().use { session ->
-                session.executeRead { tx ->
-                    val result = tx.run("UNWIND range(1, 1000000) AS n RETURN n")
-                    val last = result.records().last()["n"].asInt()
-                    last to result.consume()
-                }
-            }
-            assert(last == 1000000)
-            println("Result available after: ${summary.resultAvailableAfter()}")
-            println("Result consumed after: ${summary.resultConsumedAfter()}")
-        }
-        println("Processed in $duration")
-    }
-
-    @Test
-    fun `should stream big amount of data with sync api`() {
-        val duration = measureTime {
-            val (last, summary) = driver.session().use { session ->
-                session.executeRead { tx ->
-                    val result = tx.run("UNWIND range(1, 1000000) AS n RETURN n")
-                    val last = result.stream().reduce { _, second -> second }.get()["n"].asInt()
-                    last to result.consume()
-                }
-            }
-            assert(last == 1000000)
-            println("Result available after: ${summary.resultAvailableAfter()} ms")
-            println("Result consumed after: ${summary.resultConsumedAfter()} ms")
-        }
-        println("Processed in $duration")
-    }
-
-    @Test
-    fun `should handle multiple concurrent queries efficiently`() = runTest {
-        val duration = measureTime {
-            List(100) { i ->
-                async(Dispatchers.IO) {
-                    driver.coroutineSession().use { session ->
-                        session.executeRead { tx ->
-                            tx.run("UNWIND range(1, 10000) AS n RETURN n * $i AS result")
-                                .records()
-                                .count()
-                        }
-                    }
-                }
-            }.awaitAll()
-        }
-        println("Processed in $duration")
-    }
-
-    @Test
-    fun `should handle multiple concurrent queries less efficiently - sync version`() {
-        val executor = Executors.newFixedThreadPool(100)
-        try {
-            val duration = measureTime {
-                val futures = List(100) { i ->
-                    executor.submit<Int> {
-                        driver.session().use { session ->
-                            session.executeRead { tx ->
-                                tx.run("UNWIND range(1, 30000) AS n RETURN n * $i AS result")
-                                    .stream()
-                                    .count()
-                                    .toInt()
-                            }
-                        }
-                    }
-                }
-                futures.map { it.get() } // Wait for all to complete
-            }
-            println("Processed in $duration")
-        } finally {
-            executor.shutdown()
-            executor.awaitTermination(1, TimeUnit.MINUTES)
-        }
-    }
-
-    @Test
-    fun `should perform write and read using driver shortcuts with default configs`() = runTest {
-        // given: write using driver.write shortcut
-        driver.write { tx ->
-            tx.run(
-                $$"""
-                    CREATE (a:Person {name: $name, age: $age})
-                """.trimIndent(),
-                mapOf(
-                    "name" to "Bob",
-                    "age" to 42
-                )
-            )
-        }
-
-        // when: read using driver.read shortcut
-        val (name, age) = driver.read { tx ->
-            val records = tx.run(
-                "MATCH (p:Person {name: 'Bob'}) RETURN p.name AS name, p.age AS age"
-            ).records().toList()
-
-            records.first().let {
-                it["name"].asString() to it["age"].asInt()
-            }
-        }
-
-        // then
-        assert(name == "Bob")
-        assert(age == 42)
-    }
-
-    @Test
-    fun `should perform write and read using driver shortcuts with explicit configs`() = runTest {
-        // given: write using driver.write shortcut with explicit TransactionConfig
-        val txConfig = TransactionConfig {
-            timeout = 5.seconds
-        }
-
-        driver.write(transactionConfig = txConfig) { tx ->
-            tx.run("CREATE (a:Person {name: 'Charlie', age: 30})")
-        }
-
-        // when: read using driver.read shortcut with explicit TransactionConfig
-        val name = driver.read(transactionConfig = txConfig) { tx ->
-            tx.run(
-                "MATCH (p:Person {name: 'Charlie'}) RETURN p.name AS name"
-            ).records().map { it["name"].asString() }.first()
-        }
-
-        assert(name == "Charlie")
-    }
-
-    @Test
-    fun `should populate database using populate shortcut`() = runTest {
-        // when: using populate to insert test data
-        driver.populate(
-            """
-                CREATE (p1:Person {name: 'Dave', age: 35})
-                CREATE (p2:Person {name: 'Eve', age: 28})
-                CREATE (p1)-[:KNOWS]->(p2)
-            """.trimIndent()
-        )
-
-        // then: data should be accessible
-        val count = driver.read { tx ->
-            tx.run("MATCH (p:Person) RETURN count(p) AS count")
-                .single()["count"].asInt()
-        }
-
-        assert(count == 2)
-
-        // and: relationships should exist
-        val relationshipCount = driver.read { tx ->
-            tx.run("MATCH ()-[r:KNOWS]->() RETURN count(r) AS count")
-                .single()["count"].asInt()
-        }
-
-        assert(relationshipCount == 1)
-    }
-
-    @Test
-    fun `should populate database with custom configs`() = runTest {
-        // given
-        val txConfig = TransactionConfig {
-            timeout = 5.seconds
-        }
-
-        // when: using populate with transaction config
-        driver.populate(
-            query = "CREATE (p:Person {name: 'Frank', age: 40})",
-            transactionConfig = txConfig
-        )
-
-        // then: data should be accessible
-        val name = driver.read { tx ->
-            tx.run("MATCH (p:Person {name: 'Frank'}) RETURN p.name AS name")
-                .single()["name"].asString()
-        }
-
-        assert(name == "Frank")
     }
 
 }

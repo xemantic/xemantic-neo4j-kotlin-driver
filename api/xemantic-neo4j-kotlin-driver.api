@@ -1,3 +1,93 @@
+public final class com/xemantic/neo4j/driver/DispatchedNeo4jOperations : com/xemantic/neo4j/driver/Neo4jOperations {
+	public fun <init> (Lorg/neo4j/driver/Driver;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
+	public fun <init> (Lorg/neo4j/driver/Driver;Lkotlinx/coroutines/CoroutineDispatcher;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)V
+	public synthetic fun <init> (Lorg/neo4j/driver/Driver;Lkotlinx/coroutines/CoroutineDispatcher;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun flow (Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public fun flow (Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public fun flow (Lorg/neo4j/driver/Query;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public fun flow (Lorg/neo4j/driver/SessionConfig;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/flow/Flow;
+	public fun getDefaultSessionConfig ()Lorg/neo4j/driver/SessionConfig;
+	public fun getDefaultTransactionConfig ()Lorg/neo4j/driver/TransactionConfig;
+	public fun populate (Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun read (Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun withSession (Lorg/neo4j/driver/SessionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun write (Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/xemantic/neo4j/driver/MapAccessorDecoder : kotlinx/serialization/encoding/AbstractDecoder {
+	public fun <init> (Lorg/neo4j/driver/types/MapAccessor;)V
+	public fun beginStructure (Lkotlinx/serialization/descriptors/SerialDescriptor;)Lkotlinx/serialization/encoding/CompositeDecoder;
+	public fun decodeBoolean ()Z
+	public fun decodeByte ()B
+	public fun decodeChar ()C
+	public fun decodeDouble ()D
+	public fun decodeElementIndex (Lkotlinx/serialization/descriptors/SerialDescriptor;)I
+	public fun decodeEnum (Lkotlinx/serialization/descriptors/SerialDescriptor;)I
+	public fun decodeFloat ()F
+	public fun decodeInt ()I
+	public fun decodeLong ()J
+	public fun decodeNotNullMark ()Z
+	public fun decodeNull ()Ljava/lang/Void;
+	public fun decodeShort ()S
+	public fun decodeString ()Ljava/lang/String;
+	public fun getSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
+}
+
+public final class com/xemantic/neo4j/driver/MapEncoder : kotlinx/serialization/encoding/AbstractEncoder {
+	public fun <init> ()V
+	public fun beginStructure (Lkotlinx/serialization/descriptors/SerialDescriptor;)Lkotlinx/serialization/encoding/CompositeEncoder;
+	public fun encodeBoolean (Z)V
+	public fun encodeByte (B)V
+	public fun encodeChar (C)V
+	public fun encodeDouble (D)V
+	public fun encodeElement (Lkotlinx/serialization/descriptors/SerialDescriptor;I)Z
+	public fun encodeEnum (Lkotlinx/serialization/descriptors/SerialDescriptor;I)V
+	public fun encodeFloat (F)V
+	public fun encodeInt (I)V
+	public fun encodeLong (J)V
+	public fun encodeNull ()V
+	public fun encodeShort (S)V
+	public fun encodeString (Ljava/lang/String;)V
+	public fun endStructure (Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+	public final fun getResult ()Ljava/lang/Object;
+	public fun getSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
+	public final fun setResult (Ljava/lang/Object;)V
+}
+
+public abstract interface class com/xemantic/neo4j/driver/Neo4jOperations {
+	public fun flow (Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public fun flow (Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun flow (Lorg/neo4j/driver/Query;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun flow (Lorg/neo4j/driver/SessionConfig;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/Query;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/SessionConfig;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun getDefaultSessionConfig ()Lorg/neo4j/driver/SessionConfig;
+	public abstract fun getDefaultTransactionConfig ()Lorg/neo4j/driver/TransactionConfig;
+	public abstract fun populate (Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun populate$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun read (Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun read$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun withSession (Lorg/neo4j/driver/SessionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun withSession$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/SessionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun write (Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun write$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class com/xemantic/neo4j/driver/Neo4jOperations$DefaultImpls {
+	public static fun flow (Lcom/xemantic/neo4j/driver/Neo4jOperations;Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public static fun flow (Lcom/xemantic/neo4j/driver/Neo4jOperations;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/Query;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/SessionConfig;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun populate$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static synthetic fun read$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static synthetic fun withSession$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/SessionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static synthetic fun write$default (Lcom/xemantic/neo4j/driver/Neo4jOperations;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
 public abstract interface class com/xemantic/neo4j/driver/QueryRunner {
 	public abstract fun run (Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun run (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -20,7 +110,7 @@ public final class com/xemantic/neo4j/driver/ResultKt {
 	public static final fun singleOrNull (Lcom/xemantic/neo4j/driver/Result;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
-public abstract interface class com/xemantic/neo4j/driver/Session : com/xemantic/neo4j/driver/QueryRunner, com/xemantic/neo4j/driver/SuspendCloseable, org/neo4j/driver/BaseSession {
+public abstract interface class com/xemantic/neo4j/driver/Session : com/xemantic/kotlin/core/SuspendCloseable, com/xemantic/neo4j/driver/QueryRunner, org/neo4j/driver/BaseSession {
 	public fun beginTransaction (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun beginTransaction (Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun beginTransaction$default (Lcom/xemantic/neo4j/driver/Session;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
@@ -31,6 +121,12 @@ public abstract interface class com/xemantic/neo4j/driver/Session : com/xemantic
 	public fun executeWrite (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun executeWrite (Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun executeWrite$default (Lcom/xemantic/neo4j/driver/Session;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun flow (Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public fun flow (Ljava/lang/String;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun flow (Lorg/neo4j/driver/Query;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Session;Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Session;Ljava/lang/String;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Session;Lorg/neo4j/driver/Query;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 	public abstract fun lastBookmarks ()Ljava/util/Set;
 	public fun run (Ljava/lang/String;Ljava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun run (Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -47,6 +143,11 @@ public final class com/xemantic/neo4j/driver/Session$DefaultImpls {
 	public static synthetic fun executeRead$default (Lcom/xemantic/neo4j/driver/Session;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static fun executeWrite (Lcom/xemantic/neo4j/driver/Session;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun executeWrite$default (Lcom/xemantic/neo4j/driver/Session;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static fun flow (Lcom/xemantic/neo4j/driver/Session;Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public static fun flow (Lcom/xemantic/neo4j/driver/Session;Ljava/lang/String;Lorg/neo4j/driver/TransactionConfig;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Session;Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Session;Ljava/lang/String;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun flow$default (Lcom/xemantic/neo4j/driver/Session;Lorg/neo4j/driver/Query;Lorg/neo4j/driver/TransactionConfig;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 	public static fun run (Lcom/xemantic/neo4j/driver/Session;Ljava/lang/String;Ljava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static fun run (Lcom/xemantic/neo4j/driver/Session;Ljava/lang/String;Ljava/util/Map;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static fun run (Lcom/xemantic/neo4j/driver/Session;Lorg/neo4j/driver/Query;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -76,28 +177,13 @@ public final class com/xemantic/neo4j/driver/SessionKt {
 	public static final fun coroutineSession (Lorg/neo4j/driver/Driver;Lkotlin/jvm/functions/Function1;)Lcom/xemantic/neo4j/driver/Session;
 	public static final fun coroutineSession (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;)Lcom/xemantic/neo4j/driver/Session;
 	public static synthetic fun coroutineSession$default (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;ILjava/lang/Object;)Lcom/xemantic/neo4j/driver/Session;
-	public static final fun populate (Lorg/neo4j/driver/Driver;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun populate$default (Lorg/neo4j/driver/Driver;Ljava/lang/String;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun read (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun read$default (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun write (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun write$default (Lorg/neo4j/driver/Driver;Lorg/neo4j/driver/SessionConfig;Lorg/neo4j/driver/TransactionConfig;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-}
-
-public abstract interface class com/xemantic/neo4j/driver/SuspendCloseable {
-	public abstract fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class com/xemantic/neo4j/driver/SuspendCloseableKt {
-	public static final fun closeFinally (Lcom/xemantic/neo4j/driver/SuspendCloseable;Ljava/lang/Throwable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun use (Lcom/xemantic/neo4j/driver/SuspendCloseable;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class com/xemantic/neo4j/driver/TimeKt {
 	public static final fun asInstant (Lorg/neo4j/driver/Value;)Lkotlin/time/Instant;
 }
 
-public abstract interface class com/xemantic/neo4j/driver/Transaction : com/xemantic/neo4j/driver/QueryRunner, com/xemantic/neo4j/driver/SuspendCloseable {
+public abstract interface class com/xemantic/neo4j/driver/Transaction : com/xemantic/kotlin/core/SuspendCloseable, com/xemantic/neo4j/driver/QueryRunner {
 	public abstract fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun commit (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun isOpen (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -118,5 +204,44 @@ public abstract interface class com/xemantic/neo4j/driver/TransactionContext : c
 
 public final class com/xemantic/neo4j/driver/TransactionKt {
 	public static final fun TransactionConfig (Lkotlin/jvm/functions/Function1;)Lorg/neo4j/driver/TransactionConfig;
+}
+
+public final class com/xemantic/neo4j/driver/ValueListDecoder : kotlinx/serialization/encoding/AbstractDecoder {
+	public fun <init> (Ljava/util/List;)V
+	public fun beginStructure (Lkotlinx/serialization/descriptors/SerialDescriptor;)Lkotlinx/serialization/encoding/CompositeDecoder;
+	public fun decodeBoolean ()Z
+	public fun decodeByte ()B
+	public fun decodeChar ()C
+	public fun decodeCollectionSize (Lkotlinx/serialization/descriptors/SerialDescriptor;)I
+	public fun decodeDouble ()D
+	public fun decodeElementIndex (Lkotlinx/serialization/descriptors/SerialDescriptor;)I
+	public fun decodeEnum (Lkotlinx/serialization/descriptors/SerialDescriptor;)I
+	public fun decodeFloat ()F
+	public fun decodeInt ()I
+	public fun decodeLong ()J
+	public fun decodeNotNullMark ()Z
+	public fun decodeNull ()Ljava/lang/Void;
+	public fun decodeShort ()S
+	public fun decodeString ()Ljava/lang/String;
+	public fun getSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
+}
+
+public final class com/xemantic/neo4j/driver/ValueMapDecoder : kotlinx/serialization/encoding/AbstractDecoder {
+	public fun <init> (Ljava/util/Map;)V
+	public fun beginStructure (Lkotlinx/serialization/descriptors/SerialDescriptor;)Lkotlinx/serialization/encoding/CompositeDecoder;
+	public fun decodeBoolean ()Z
+	public fun decodeByte ()B
+	public fun decodeChar ()C
+	public fun decodeDouble ()D
+	public fun decodeElementIndex (Lkotlinx/serialization/descriptors/SerialDescriptor;)I
+	public fun decodeEnum (Lkotlinx/serialization/descriptors/SerialDescriptor;)I
+	public fun decodeFloat ()F
+	public fun decodeInt ()I
+	public fun decodeLong ()J
+	public fun decodeNotNullMark ()Z
+	public fun decodeNull ()Ljava/lang/Void;
+	public fun decodeShort ()S
+	public fun decodeString ()Ljava/lang/String;
+	public fun getSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
 }
 
