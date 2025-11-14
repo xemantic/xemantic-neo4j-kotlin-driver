@@ -410,8 +410,9 @@ The `populate()` function handles session and transaction management automatical
 ```kotlin
 // ✅ Recommended for simple single-transaction operations
 val count = neo4j.read { tx ->
-    tx.run("MATCH (p:Person) RETURN count(p) as count")
-        .single()["count"].asInt()
+    tx.run(
+        "MATCH (p:Person) RETURN count(p) as count"
+    ).single()["count"].asInt()
 }
 ```
 
@@ -424,8 +425,9 @@ neo4j.withSession { session ->
         tx.run("CREATE (p:Person {name: 'Alice'})")
     }
     val count = session.executeRead { tx ->
-        tx.run("MATCH (p:Person) RETURN count(p) as count")
-            .single()["count"].asInt()
+        tx.run(
+            "MATCH (p:Person) RETURN count(p) as count"
+        ).single()["count"].asInt()
     }
     println("Created and counted: $count")
 }
