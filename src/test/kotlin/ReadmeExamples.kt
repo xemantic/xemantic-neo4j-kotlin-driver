@@ -212,7 +212,7 @@ class ReadmeExamples {
             tx.run(
                 query = $$"""
                     CREATE (person:Person $props)
-                    SET person.createdAt = datetime()
+                    SET person.createdAt = datetime.realtine()
                     RETURN person
                 """,
                 parameters = mapOf(
