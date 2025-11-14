@@ -56,7 +56,17 @@ internal class InternalResult(
 
     }
 
-    override suspend fun single(): Record = cursor.singleAsync().await()
+    override suspend fun single(): Record {
+        if (!recordsConsumed.compareAndSet(
+                expectedValue = false,
+                newValue = true
+        )) {
+            throw ResultConsumedException(
+                "Records can only be consumed once"
+            )
+        }
+        return cursor.singleAsync().await()
+    }
 
     override suspend fun consume(): ResultSummary = cursor.consumeAsync().await()
 

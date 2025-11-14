@@ -21,6 +21,8 @@ import com.xemantic.neo4j.driver.Session
 import com.xemantic.neo4j.driver.Transaction
 import com.xemantic.neo4j.driver.TransactionContext
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.future.future
 import org.neo4j.driver.*
@@ -40,22 +42,39 @@ internal class InternalSession(
         config: TransactionConfig,
         callback: suspend (TransactionContext) -> T
     ): T = coroutineScope {
-        session.executeReadAsync<T> { tx ->
-            future {
-                callback(InternalTransactionContext(tx))
-            }
-        }.await()
+        session.executeReadAsync<T>(
+            { tx ->
+                future {
+                    callback(InternalTransactionContext(tx))
+                }
+            },
+            config
+        ).await()
     }
 
     override suspend fun <T> executeWrite(
         config: TransactionConfig,
         callback: suspend (TransactionContext) -> T
     ): T = coroutineScope {
-        session.executeWriteAsync<T> { tx ->
-            future {
-                callback(InternalTransactionContext(tx))
+        session.executeWriteAsync<T>(
+            { tx ->
+                future {
+                    callback(InternalTransactionContext(tx))
+                }
+            },
+            config
+        ).await()
+    }
+
+    override fun flow(
+        query: Query,
+        config: TransactionConfig
+    ): Flow<Record> = channelFlow {
+        executeRead(config) { tx ->
+            tx.run(query).records().collect {
+                send(it)
             }
-        }.await()
+        }
     }
 
     override suspend fun run(
