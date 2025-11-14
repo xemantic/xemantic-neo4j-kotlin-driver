@@ -17,7 +17,7 @@
 package com.xemantic.neo4j.driver
 
 import com.xemantic.kotlin.test.assert
-import kotlinx.coroutines.flow.single
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -28,11 +28,14 @@ import org.junit.jupiter.api.Test
  */
 class NodeMappingRoundTripTest {
 
-    private val driver = SharedNeo4jInstance.driver
+    private val neo4j = DispatchedNeo4jOperations(
+        driver = TestNeo4j.driver,
+        dispatcher = Dispatchers.IO.limitedParallelism(90)
+    )
 
     @AfterEach
     fun cleanDatabase() {
-        driver.executableQuery("MATCH (n) DETACH DELETE n").execute()
+        TestNeo4j.cleanDatabase()
     }
 
     @Test
@@ -41,13 +44,11 @@ class NodeMappingRoundTripTest {
         val original = SimplePerson(name = "Alice", age = 30)
 
         // when
-        val retrieved = driver.write { tx ->
+        val retrieved = neo4j.write { tx ->
             tx.run(
                 query = $$"CREATE (p:Person $props) RETURN p",
-                parameters = mapOf("props" to original.toNodeProperties())
-            ).single()["p"]
-                .asNode()
-                .toObject<SimplePerson>()
+                parameters = mapOf("props" to original.toProperties())
+            ).single()["p"].toObject<SimplePerson>()
         }
 
         // then
@@ -63,13 +64,11 @@ class NodeMappingRoundTripTest {
         )
 
         // when
-        val retrieved = driver.write { tx ->
+        val retrieved = neo4j.write { tx ->
             tx.run(
                 query = $$"CREATE (p:Person $props) RETURN p",
-                parameters = mapOf("props" to original.toNodeProperties())
-            ).single()["p"]
-                .asNode()
-                .toObject<PersonWithList>()
+                parameters = mapOf("props" to original.toProperties())
+            ).single()["p"].toObject<PersonWithList>()
         }
 
         // then
@@ -85,13 +84,11 @@ class NodeMappingRoundTripTest {
         )
 
         // when
-        val retrieved = driver.write { tx ->
+        val retrieved = neo4j.write { tx ->
             tx.run(
                 query = $$"CREATE (p:Person $props) RETURN p",
-                parameters = mapOf("props" to original.toNodeProperties())
-            ).single()["p"]
-                .asNode()
-                .toObject<PersonWithEnum>()
+                parameters = mapOf("props" to original.toProperties())
+            ).single()["p"].toObject<PersonWithEnum>()
         }
 
         // then
@@ -108,13 +105,11 @@ class NodeMappingRoundTripTest {
         )
 
         // when
-        val retrieved = driver.write { tx ->
+        val retrieved = neo4j.write { tx ->
             tx.run(
                 query = $$"CREATE (p:Person $props) RETURN p",
-                parameters = mapOf("props" to original.toNodeProperties())
-            ).records().single()["p"]
-                .asNode()
-                .toObject<PersonWithNullables>()
+                parameters = mapOf("props" to original.toProperties())
+            ).single()["p"].toObject<PersonWithNullables>()
         }
 
         // then

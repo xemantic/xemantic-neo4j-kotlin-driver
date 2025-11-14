@@ -28,7 +28,7 @@ import org.neo4j.driver.internal.InternalNode
 
 /**
  * Unit tests for [toObject] extension function.
- * These tests verify entity-to-object conversion using InternalNode and InternalRelationship
+ * These tests verify entity-to-object conversion using [InternalNode]
  * without requiring a full Neo4j instance.
  */
 class NodeToObjectUnitTest {

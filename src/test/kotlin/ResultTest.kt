@@ -122,9 +122,7 @@ class ResultTest {
         }
 
         // when
-        val name = result.single { record ->
-            record["name"].asString()
-        }
+        val name = result.single()["name"].asString()
 
         // then
         assert(name == "Alice")
@@ -139,10 +137,10 @@ class ResultTest {
         }
 
         // when
-        val person = result.single { record ->
+        val person = result.single().let {
             SimplePerson(
-                name = record["name"].asString(),
-                age = record["age"].asInt()
+                name = it["name"].asString(),
+                age = it["age"].asInt()
             )
         }
 
@@ -150,27 +148,6 @@ class ResultTest {
         person should {
             have(name == "Alice")
             have(age == 30)
-        }
-    }
-
-    @Test
-    fun `single with transformation should propagate exceptions from block`() = runTest {
-        // given
-        val mockRecord = createMockRecord("name" to "Alice")
-        val result = mockk<Result> {
-            coEvery { single() } returns mockRecord
-        }
-
-        // when
-        val exception = assertThrows<IllegalStateException> {
-            result.single {
-                error("Transformation failed")
-            }
-        }
-
-        // then
-        exception should {
-            have(message == "Transformation failed")
         }
     }
 
@@ -183,9 +160,7 @@ class ResultTest {
 
         // when
         val exception = assertThrows<NoSuchRecordException> {
-            result.single { record ->
-                record["name"].asString()
-            }
+            result.single()["name"].asString()
         }
 
         // then

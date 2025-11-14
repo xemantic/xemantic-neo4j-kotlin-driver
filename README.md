@@ -19,53 +19,61 @@ Kotlin coroutines adapter for the Neo4j Java driver (async)
 [<img alt="discord users online" src="https://img.shields.io/discord/811561179280965673">](https://discord.gg/vQktqqN2Vn)
 [![Bluesky](https://img.shields.io/badge/Bluesky-0285FF?logo=bluesky&logoColor=fff)](https://bsky.app/profile/xemantic.com)
 
-## TL;DR
-
-A good example might be worth thousand words:
+## Quick Start
 
 ```kotlin
-// Write to the database
-driver.write { tx ->
-    tx.run("""
-        CREATE (alice:Person {
-            id: 'p001',
-            name: 'Alice Johnson',
-            email: 'alice.johnson@email.com',
-            age: 28,
-            city: 'New York',
-            skills: ['Python', 'JavaScript', 'SQL'],
-            active: true,
-            createdAt: datetime('2023-01-15T10:30:00')
-        });
-    """.trimIndent())
+// Connect to Neo4j
+val neo4j = DispatchedNeo4jOperations(
+    driver = driver,
+    dispatcher = Dispatchers.IO.limitedParallelism(90)
+)
+
+// Write data
+neo4j.write { tx ->
+    tx.run("CREATE (p:Person {name: 'Alice', age: 30})")
 }
 
-// Read from the database
-val person = driver.read { tx ->
+// Read data
+val name = neo4j.read { tx ->
     tx.run(
-        "MATCH (p:Person) RETURN p"
-    ).single().let { record ->
-        record["p"].let { p ->
-            Person(
-                id =        p["id"].asString(),
-                name =      p["name"].asString(),
-                email =     p["email"].asString(),
-                age =       p["age"].asInt(),
-                city =      p["city"].asString(),
-                skills =    p["skills"].asList { it.asString() },
-                active =    p["active"].asBoolean(),
-                createdAt = p["createdAt"].asInstant()
-            )
-        }
-    }
+        "MATCH (p:Person) RETURN p.name AS name"
+    ).single()["name"].asString()
 }
 
-println(person)
+println(name) // "Alice"
 ```
 
-## Usage
+See [ReadmeExamples.kt](src/test/kotlin/ReadmeExamples.kt) for all runnable examples.
 
-In `build.gradle.kts` add:
+## Features
+
+### High-Level API
+- **[Neo4jOperations](src/main/kotlin/Neo4jOperations.kt)** - Simplified coroutine-friendly interface for common Neo4j operations
+- **Automatic session management** - No need to manually manage session lifecycle for simple operations
+- **Safe concurrency** - IO dispatcher with limited parallelism (default 90) prevents exhausting the driver's 100 session limit
+
+### Object Mapping
+- **Kotlinx.serialization integration** - Map `@Serializable` classes directly to/from Neo4j properties
+- **Type-safe conversions** - `toProperties()` and `toObject<T>()` extension functions
+- **Instant support** - Automatic conversion between `kotlin.time.Instant` and Neo4j `DateTime`
+
+### Coroutines & Flow
+- **Structured concurrency** - All operations use `suspend` functions instead of `CompletionStage`
+- **Flow-based streaming** - Stream large result sets efficiently with Kotlin Flow
+- **Non-blocking** - Built on Neo4j's async driver, never blocks threads
+
+### Developer Experience
+- **Multi-dollar string interpolation** (`$$"""..."""`) - Include `$` in Cypher queries without escaping
+- **IntelliJ IDEA integration** - `@Language("cypher")` annotations enable syntax highlighting with the [Graph Database plugin](https://plugins.jetbrains.com/plugin/20417-graph-database)
+- **Flexible configuration** - Builder DSL for session and transaction configs with sensible defaults
+
+### Testing
+- **`populate()` utility** - Quickly insert test data without boilerplate
+- **Resource cleanup** - Automatic cleanup when Flow completes (normally or exceptionally)
+
+## Installation
+
+Add to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
@@ -73,152 +81,249 @@ dependencies {
 }
 ```
 
-## Connection
+## Getting Started
 
-### Connect to the database
+### Connect to Neo4j
 
 ```kotlin
-fun main() {
-    // URI examples: "neo4j://localhost", "neo4j+s://xxx.databases.neo4j.io"
-    val dbUri = "<database-uri>"
-    val dbUser = "<username>"
-    val dbPassword = "<password>"
+// URI examples: "neo4j://localhost", "neo4j+s://xxx.databases.neo4j.io"
+val dbUri = "<database-uri>"
+val dbUser = "<username>"
+val dbPassword = "<password>"
 
-    GraphDatabase.driver(dbUri, AuthTokens.basic(dbUser, dbPassword)).use {
-        it.verifyConnectivity()
-        println("Connection established.")
-    }
+val driver = GraphDatabase.driver(
+    dbUri,
+    AuthTokens.basic(dbUser, dbPassword)
+).use { driver ->
+    driver.verifyConnectivity()
+    println("Connection established.")
+    // use the driver
 }
 ```
 
-### Close connections
-
 > [!WARNING]
-> Always close Driver objects to free up all allocated resources, even upon unsuccessful connection or runtime errors.
- 
-Kotlin provides [use](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.io/use.html) function to ensure that a resource is closed (equivalent of try-with-resources in Java). If it is not suitable for your use case, remember to call the `Driver.close()` function explicitly.
+> Always close Driver objects to free up allocated resources. Use Kotlin's `.use { }` function or call `driver.close()` explicitly.
 
-### Advanced connection information
+For advanced connection options, see the [Neo4j Java driver documentation](https://neo4j.com/docs/java-manual/current/connect/).
 
-Refer to the original documentation of Java driver:
+### Create Neo4jOperations
 
-https://neo4j.com/docs/java-manual/current/connect/
-https://neo4j.com/docs/java-manual/current/connect-advanced/
-
-## Coroutine sessions
-
-### Creating coroutine session
+The recommended way to use this library is through the `Neo4jOperations` interface:
 
 ```kotlin
-driver.coroutineSession().use { session ->
-    // use session
-}
+val neo4j = DispatchedNeo4jOperations(
+    driver = driver,
+    dispatcher = Dispatchers.IO.limitedParallelism(90),
+    defaultSessionConfig = {
+        database = "neo4j"
+    },
+    defaultTransactionConfig = {
+        timeout = 30.seconds
+    }
+)
 ```
 
 > [!NOTE]
-> The `coroutineSession()` function returns an instance of [Session](src/main/kotlin/Session.kt), which is adapting the `AsyncSession` to Kotlin-idiomatic coroutines. Instead of `CompletionStage` instances being returned for asynchronous callbacks, all the functions are marked with `suspend` keyword. Check out [Kotlin coroutines](https://kotlinlang.org/docs/coroutines-overview.html) official documentation for details.
+> The IO dispatcher ensures optimal performance for non-blocking operations. Limiting parallelism to 90 (default driver limit is 100) means operations will suspend instead of throwing exceptions when no free sessions are available.
 
-### Close sessions
-
-Each connection pool has a finite number of sessions, so if you open sessions without ever closing them, your application could run out of them. It is thus recommended to create sessions with the `use` function (Kotlin-idiomatic equivalent of try-with-resources Java statement), which automatically closes them when the application is done with them. When a session is closed, it is returned to the connection pool to be later reused.
-
-If you do not open sessions with `use` functions, remember to call the `.close()` function when you have finished using them.
+### Basic Read Query
 
 ```kotlin
-val session = driver.coroutineSession()
-
-// session usage
-
-session.close()
+val peopleCount = neo4j.read { tx ->
+    tx.run(
+        "MATCH (p:Person) RETURN count(p) AS count"
+    ).single()["count"].asInt()
+}
 ```
 
-## Query the database
-
-### Shortcut functions for single transactions
-
-For simple use cases where you need to execute a single transaction without managing sessions manually,
-use the convenient `driver.read()` and `driver.write()` shortcut functions. These functions automatically
-handle session lifecycle management (creation and cleanup) for you.
-
-#### Quick write example
+### Basic Write Query
 
 ```kotlin
-driver.write { tx ->
+val summary = neo4j.write { tx ->
     tx.run(
-        "CREATE (p:Person {name: 'Alice', age: 30})"
+        query = $$"""
+            CREATE (a:Person {name: $name})
+            CREATE (b:Person {name: $friendName})
+            CREATE (a)-[:KNOWS]->(b)
+        """.trimIndent(),
+        parameters = mapOf(
+            "name" to "Alice",
+            "friendName" to "David"
+        )
+    ).consume()
+}
+println(summary)
+```
+
+**Notes:**
+- The `query` and `parameters` can be optionally named for clarity
+- Multi-dollar interpolation (`$$"""..."""`) allows `$` in queries without escaping
+- The final `.consume()` call can be omitted if you don't need the summary
+
+```kotlin
+neo4j.write { tx ->
+    tx.run(
+        query = $$"""
+            CREATE (a:Person {name: $name})
+            CREATE (b:Person {name: $friendName})
+            CREATE (a)-[:KNOWS]->(b)
+        """.trimIndent(),
+        parameters = mapOf(
+            "name" to "Alice",
+            "friendName" to "David"
+        )
     )
 }
 ```
 
-#### Quick read example
+## Advanced Usage
+
+### Object Mapping with kotlinx.serialization
+
+Map between Neo4j properties and Kotlin data classes using kotlinx.serialization:
 
 ```kotlin
-val name = driver.read { tx ->
+@Serializable
+data class Person(
+    val name: String,
+    val email: String,
+    val age: Int,
+    val city: String,
+    val skills: List<String>,
+    val active: Boolean,
+    val createdAt: Instant = Clock.System.now()
+)
+
+val person = Person(
+    name = "Alice Johnson",
+    email = "alice.johnson@email.com",
+    age = 28,
+    city = "New York",
+    skills = listOf("Python", "JavaScript", "SQL"),
+    active = true
+)
+```
+
+#### Write objects to Neo4j
+
+```kotlin
+val createdPerson = neo4j.write { tx ->
     tx.run(
-        "MATCH (p:Person {name: 'Alice'}) RETURN p.name AS name"
-    ).single()["name"].asString()
+        query = $$"""
+            CREATE (person:Person $props)
+            SET person.createdAt = datetime()
+            RETURN person
+        """,
+        parameters = mapOf(
+            "props" to person.toProperties()
+        )
+    ).single()["person"].toObject<Person>()
 }
 ```
 
-#### With configuration
+> [!NOTE]
+> The `createdAt` set by the Neo4j server will hold server time. Assuming synchronized clocks, `createdPerson.createdAt` will be greater than or equal to `person.createdAt`.
 
-Both functions accept optional `sessionConfig` and `transactionConfig` parameters:
+The `toProperties()` extension function converts any `@Serializable` class to a map of Neo4j-compatible properties.
+
+#### Read objects from Neo4j
 
 ```kotlin
-val txConfig = TransactionConfig {
-    timeout = 5.seconds
+val storedPerson = neo4j.read { tx ->
+    tx.run(
+        "MATCH (p:Person) RETURN p"
+    ).single()["p"].toObject<Person>()
 }
 
-driver.write(transactionConfig = txConfig) { tx ->
-    tx.run("CREATE (p:Person {name: 'Bob'})")
+println(storedPerson)
+```
+
+The `toObject<T>()` extension function converts Neo4j nodes/relationships to Kotlin objects.
+
+> [!NOTE]
+> Only flat properties are supported (primitives, lists of primitives, enums). Nested objects require separate nodes connected by relationships.
+
+### Flow-based Streaming
+
+Stream large result sets efficiently using Kotlin Flow:
+
+```kotlin
+neo4j.flow(
+    "MATCH (p:Person) RETURN p ORDER BY p.name"
+).collect {
+    println(it["p"]["name"].asString())
+}
+// Prints: Alice, Bob, Charlie...
+// Session is automatically closed after flow collection
+```
+
+#### Transform and filter
+
+```kotlin
+val names = neo4j.flow(
+    query = $$"MATCH (p:Person) WHERE p.age > $minAge RETURN p.name AS name ORDER BY p.name",
+    parameters = mapOf("minAge" to 28)
+).map {
+    it["name"].asString()
+}.toList()
+
+println(names) // [Alice, Charlie, ...]
+```
+
+### Session-based Operations
+
+For complex scenarios requiring multiple transactions on the same session, you can use `neo4j.withSession { }` which provides session lifecycle management:
+
+#### Multiple operations on one session
+
+```kotlin
+neo4j.withSession { session ->
+    // First: write operation
+    session.executeWrite { tx ->
+        tx.run("CREATE (p:Person {name: 'Alice'})")
+    }
+
+    // Then: read operation on the same session
+    val count = session.executeRead { tx ->
+        tx.run(
+            "MATCH (p:Person) RETURN count(p) as count"
+        ).single()["count"].asInt()
+    }
+
+    println("Created and counted: $count")
 }
 ```
 
-> [!TIP]
-> Use `driver.read()` and `driver.write()` for simple single-transaction operations.
-> For multiple transactions on the same session, use the session-based approach described below.
+#### Lower-level driver API
 
-### Session-based transactions
+For even more control, you can use `driver.coroutineSession()` directly:
 
-For more complex scenarios requiring multiple transactions on the same session, or when you need
-fine-grained control over session lifecycle, use the session-based approach.
-
-#### Write to the database
+**Write with driver session:**
 
 ```kotlin
 val summary = driver.coroutineSession().use { session ->
     session.executeWrite { tx ->
         tx.run(
-            // multi-dollar interpolation allows to include $ without escaping
             query = $$"""
                 CREATE (a:Person {name: $name})
                 CREATE (b:Person {name: $friendName})
                 CREATE (a)-[:KNOWS]->(b)
             """.trimIndent(),
-            // named `query` and `parameters` parameters can be skipped if you prefer
             parameters = mapOf(
                 "name" to "Alice",
                 "friendName" to "David"
             )
-        ).consume() // ensures that the ResultSummary is returned
+        ).consume()
     }
 }
 
 println(
-    "Created ${summary.counters().nodesCreated()}" +
-            " in ${summary.resultAvailableAfter(TimeUnit.MILLISECONDS)} ms."
+    "Created ${summary.counters().nodesCreated()} nodes " +
+    "in ${summary.resultAvailableAfter(TimeUnit.MILLISECONDS)} ms."
 )
 ```
 
-See [Neo4jCoroutineDriverTest](src/test/kotlin/Neo4jCoroutineDriverTest.kt) with a full running example.
-
-> [!NOTE]
-> This code needs to be called in the coroutine scope. Wrapping such an invocation in the `suspend` function is usually a way to go.
-
-> [!TIP]
-> If you are using IntelliJ, installing the [Graph Database](https://plugins.jetbrains.com/plugin/20417-graph-database) plugin will automatically highlight the Cypher query code inside multiline strings.
-
-#### Read from the database
+**Read with driver session:**
 
 ```kotlin
 val (names, readSummary) = driver.coroutineSession().use { session ->
@@ -226,36 +331,117 @@ val (names, readSummary) = driver.coroutineSession().use { session ->
         val result = tx.run(
             "MATCH (p:Person)-[:KNOWS]->(:Person) RETURN p.name AS name"
         )
-        val names = result.records().map {
+        val names = result.records().toList().map {
             it["name"].asString()
-        }.toList()
+        }
         val summary = result.consume()
         names to summary
     }
 }
 
 println(
-    "The query ${readSummary.query()} " +
-            "returned ${names.size} records " +
-            "in ${readSummary.resultAvailableAfter(TimeUnit.MILLISECONDS)} ms."
+    "The query ${readSummary.query().text()} " +
+    "returned ${names.size} records " +
+    "in ${readSummary.resultAvailableAfter(TimeUnit.MILLISECONDS)} ms."
 )
 println("Returned names: $names")
 ```
 
-## Transaction configuration
+**Session and transaction configuration:**
 
 ```kotlin
 driver.coroutineSession { // session config
-    database = "<database-name>"
+    database = "neo4j"
 }.use { session ->
-    val result = session.executeRead({ // transaction config
+    session.executeRead({ // transaction config
         timeout = 5.seconds
         metadata = mapOf("appName" to "peopleTracker")
     }) { tx ->
-        tx.run("MATCH (p:Person) RETURN p")
-    }
-    result.records().collect {
-        println(it)
+        tx.run("MATCH (p:Person) RETURN p").records().collect {
+            println(it)
+        }
     }
 }
 ```
+
+### Populate Utility for Testing
+
+Quickly set up test data:
+
+```kotlin
+neo4j.populate("""
+    CREATE (p1:Person {name: 'Alice', age: 30})
+    CREATE (p2:Person {name: 'Bob', age: 25})
+    CREATE (p1)-[:KNOWS]->(p2)
+""".trimIndent())
+```
+
+The `populate()` function handles session and transaction management automatically.
+
+## API Comparison
+
+### Simple operations - Use Neo4jOperations shortcuts
+
+```kotlin
+// ✅ Recommended for simple single-transaction operations
+val count = neo4j.read { tx ->
+    tx.run("MATCH (p:Person) RETURN count(p) as count")
+        .single()["count"].asInt()
+}
+```
+
+### Multiple transactions - Use withSession
+
+```kotlin
+// ✅ Recommended when you need multiple transactions on the same session
+neo4j.withSession { session ->
+    session.executeWrite { tx ->
+        tx.run("CREATE (p:Person {name: 'Alice'})")
+    }
+    val count = session.executeRead { tx ->
+        tx.run("MATCH (p:Person) RETURN count(p) as count")
+            .single()["count"].asInt()
+    }
+    println("Created and counted: $count")
+}
+```
+
+### Advanced control - Use driver.coroutineSession()
+
+```kotlin
+// ✅ Use when you need maximum control over session lifecycle
+driver.coroutineSession().use { session ->
+    // Full control over session configuration and lifecycle
+    val summary = session.executeWrite { tx ->
+        tx.run("CREATE (p:Person {name: 'Bob'})").consume()
+    }
+    println("Nodes created: ${summary.counters().nodesCreated()}")
+}
+```
+
+## Important Notes
+
+### Resource Management
+
+- **Sessions**: Always use `.use { }` to ensure proper cleanup
+- **Results**: Must be fully consumed (Flow collected or `consume()` called)
+- **Transactions**: Managed transactions auto-commit/rollback; unmanaged require explicit `commit()`/`rollback()`
+
+### Result Consumption
+
+- `records()` Flow can only be collected **once**
+- After `consume()` is called, `records()` cannot be collected
+- Results are automatically consumed when Flow collection completes
+
+### Limitations
+
+- **Nested objects**: Not supported in property mapping - use separate nodes with relationships
+- **Multi-collector Flows**: Each result's `records()` can only be collected once
+
+## Contributing
+
+See [CLAUDE.md](CLAUDE.md) for development guidelines and architecture overview.
+
+## License
+
+Apache License 2.0 - see [LICENSE](LICENSE)

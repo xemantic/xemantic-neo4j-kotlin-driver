@@ -17,7 +17,6 @@
 package com.xemantic.neo4j.driver
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import org.neo4j.driver.Record
 import org.neo4j.driver.exceptions.NoSuchRecordException
 import org.neo4j.driver.exceptions.ResultConsumedException

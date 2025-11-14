@@ -24,7 +24,10 @@ import org.neo4j.driver.GraphDatabase
 import org.neo4j.harness.Neo4j
 import org.neo4j.harness.internal.InProcessNeo4jBuilder
 
-object SharedNeo4jInstance {
+/**
+ * A convenient way to test neo4j with an instance shared between tests.
+ */
+object TestNeo4j {
 
     private val neo4j: Neo4j by lazy {
         InProcessNeo4jBuilder()
@@ -35,11 +38,16 @@ object SharedNeo4jInstance {
     }
 
     val driver: Driver by lazy {
-        GraphDatabase.driver(neo4j.boltURI(), AuthTokens.none())
+        GraphDatabase.driver(
+            neo4j.boltURI(),
+            AuthTokens.none()
+        )
     }
 
     fun cleanDatabase() {
-        driver.executableQuery("MATCH (n) DETACH DELETE n").execute()
+        driver.executableQuery(
+            "MATCH (n) DETACH DELETE n"
+        ).execute()
     }
 
 }
