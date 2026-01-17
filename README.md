@@ -123,10 +123,10 @@ The recommended way to use this library is through the `Neo4jOperations` interfa
 val neo4j = DispatchedNeo4jOperations(
     driver = driver,
     dispatcher = Dispatchers.IO.limitedParallelism(90),
-    defaultSessionConfig = {
-        database = "neo4j"
-    },
-    defaultTransactionConfig = {
+    defaultSessionConfig = SessionConfig {
+        database = "graphs"
+    }
+    defaultTransactionConfig = TransactionConfig {
         timeout = 30.seconds
     }
 )
